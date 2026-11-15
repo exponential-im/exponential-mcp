@@ -133,6 +133,8 @@ exponential-mcp serve
 | Tool | Description |
 |------|-------------|
 | `get_workspaces` | List all workspaces |
+| `get_agent_context` | Agent context for a workspace (and project): instructions, decisions, ADRs. Guidance, not authority |
+| `get_agent_method` | The published Exponential method. Guidance, not authority |
 | `get_projects` | List projects (optionally by workspace) |
 | `get_project` | One project in full: linked objectives & key results, DRI, team, dates |
 | `update_project` | Rename, change status/priority, set dates, re-link to OKRs |
