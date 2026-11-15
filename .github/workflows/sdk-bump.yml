@@ -89,6 +89,16 @@ jobs:
             echo "bump=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Never lower what package.json already asks for. If it wants a version npm
+          # doesn't have yet, that is for CI to report (check-sdk-pin.mjs), not for a
+          # bump to paper over by moving the range back.
+          range=$(node -p "require('./package.json').dependencies?.['$PKG'] ?? ''")
+          wanted=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' <<<"$range" | head -n1 || true)
+          if [ -n "$wanted" ] && [ "$wanted" != "$latest" ] && [ "$(printf '%s\n%s\n' "$wanted" "$latest" | sort -V | tail -n1)" = "$wanted" ]; then
+            echo "package.json asks for ${PKG} ${range}, which is ahead of npm's ${latest}. Nothing to bump."
+            echo "bump=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           {
             echo "bump=true"
             echo "latest=${latest}"
