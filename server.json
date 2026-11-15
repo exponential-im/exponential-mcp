@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.exponential-im/exponential-mcp",
+  "description": "Tools over your Exponential workspace: projects, actions, OKRs, meetings, tickets and CRM.",
+  "websiteUrl": "https://www.exponential.im/features/integrations",
+  "repository": {
+    "url": "https://github.com/exponential-im/exponential-mcp",
+    "source": "github"
+  },
+  "version": "0.12.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "exponential-mcp",
+      "version": "0.12.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "EXPONENTIAL_API_KEY",
+          "description": "An Exponential agent key (exp_agent_...) from Settings → Agents. Optional if you ran `npx exponential-mcp init`.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

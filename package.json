@@ -1,7 +1,8 @@
 {
   "name": "exponential-mcp",
   "version": "0.12.1",
-  "description": "MCP server for Exponential - connect Claude to your projects, actions, goals, CRM, tickets and more",
+  "mcpName": "io.github.exponential-im/exponential-mcp",
+  "description": "MCP server for Exponential: give Claude, Cursor, Codex or any MCP client tools over your projects, actions, OKRs, meetings, tickets and CRM",
   "main": "dist/index.js",
   "bin": {
     "exponential-mcp": "./dist/cli.js"
@@ -19,7 +20,15 @@
     "claude",
     "exponential",
     "productivity",
-    "anthropic"
+    "anthropic",
+    "mcp-server",
+    "model-context-protocol",
+    "cursor",
+    "codex",
+    "project-management",
+    "okr",
+    "tasks",
+    "ai-agents"
   ],
   "author": "Exponential",
   "license": "AGPL-3.0-or-later",
@@ -27,7 +36,7 @@
     "type": "git",
     "url": "git+https://github.com/exponential-im/exponential-mcp.git"
   },
-  "homepage": "https://github.com/exponential-im/exponential-mcp#readme",
+  "homepage": "https://www.exponential.im/features/integrations",
   "bugs": {
     "url": "https://github.com/exponential-im/exponential-mcp/issues"
   },
