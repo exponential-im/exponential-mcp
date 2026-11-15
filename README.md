@@ -2,7 +2,11 @@
 
 [![npm version](https://img.shields.io/npm/v/exponential-mcp.svg)](https://www.npmjs.com/package/exponential-mcp)
 
-Connect Claude to your [Exponential](https://exponential.im) workspace. Manage projects, actions, and OKRs directly from Claude.
+Connect Claude to your [Exponential](https://www.exponential.im) workspace. Manage projects, actions, and OKRs directly from Claude.
+
+Setup guides: **[Claude](https://www.exponential.im/features/integrations/claude)** · **[Cursor](https://www.exponential.im/features/integrations/cursor)** · **[Codex](https://www.exponential.im/features/integrations/codex)** · **[MCP & SDK docs](https://www.exponential.im/docs/developers/mcp-and-sdk)**
+
+Built on the [Exponential SDK](https://github.com/exponential-im/exponential-sdk); the [Exponential CLI](https://github.com/exponential-im/exponential-cli) covers the same workspace from a terminal.
 
 ## Quick Start
 
