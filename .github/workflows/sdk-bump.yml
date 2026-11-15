@@ -1,0 +1,164 @@
+name: Bump exponential-sdk
+
+# Opens a "bump exponential-sdk" PR when npm has a newer exponential-sdk than
+# package-lock.json pins. There is no publish event to listen for (the SDK is
+# published by hand, from another repo), so this asks the registry once an hour.
+#
+# The PR sets package.json's range to ^<newest> and updates package-lock.json;
+# nothing else. It is pushed and opened as the exponential-automerge App, not as
+# GITHUB_TOKEN: a PR made with GITHUB_TOKEN doesn't trigger other workflows, so
+# CI would never run on it. PR-Agent skips bot-opened PRs and so does the
+# auto-merge gate, which means a person merges the bump once CI is green.
+#
+# It reuses the gate's credentials (the `pr-agent-automerge` environment:
+# variable AUTOMERGE_APP_CLIENT_ID, secret AUTOMERGE_APP_PRIVATE_KEY). Until
+# those exist it does nothing. The App token is minted only after the lockfile
+# has been regenerated, and that step runs no package code (--ignore-scripts,
+# --package-lock-only), so nothing from npm ever runs next to the token.
+#
+# One branch, one PR: a newer SDK version replaces the open bump rather than
+# opening a second. A bump that was closed without merging is not reopened.
+#
+# Run it now:   gh workflow run sdk-bump.yml
+# Turn it off:  gh workflow disable sdk-bump.yml
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sdk-bump
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PKG: exponential-sdk
+  BRANCH: chore/bump-exponential-sdk
+
+jobs:
+  bump:
+    name: Open a bump PR
+    # Scheduled runs only make sense on the canonical repo, not on forks.
+    if: github.repository_owner == 'exponential-im'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pr-agent-automerge
+      deployment: false
+    steps:
+      - name: Is the App set up?
+        id: setup
+        env:
+          CLIENT_ID: ${{ vars.AUTOMERGE_APP_CLIENT_ID }}
+        run: |
+          if [ -z "$CLIENT_ID" ]; then
+            echo "::notice title=Bump exponential-sdk is not set up::The pr-agent-automerge environment has no AUTOMERGE_APP_CLIENT_ID variable, so no bump PR can be opened. See the header of sdk-bump.yml."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          node-version: 22
+
+      - name: Is there a newer exponential-sdk?
+        id: versions
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          latest=$(npm view "$PKG" dist-tags.latest)
+          locked=$(node -p "require('./package-lock.json').packages?.['node_modules/$PKG']?.version ?? ''")
+          echo "npm latest: ${latest}; package-lock.json: ${locked:-none}"
+          if ! [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::npm returned \"${latest}\" as the latest ${PKG}, which is not a plain x.y.z version."
+            exit 1
+          fi
+          # Only ever move forward: a lockfile already on a newer version stays put.
+          newest=$(printf '%s\n%s\n' "$locked" "$latest" | sort -V | tail -n1)
+          if [ "$latest" = "$locked" ] || [ "$newest" != "$latest" ]; then
+            echo "Nothing to bump."
+            echo "bump=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "bump=true"
+            echo "latest=${latest}"
+            echo "locked=${locked}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update package.json and package-lock.json
+        if: steps.versions.outputs.bump == 'true'
+        env:
+          LATEST: ${{ steps.versions.outputs.latest }}
+        run: |
+          set -euo pipefail
+          # Resolves and writes the two files; installs nothing and runs no scripts.
+          npm install "${PKG}@^${LATEST}" --package-lock-only --ignore-scripts --no-audit --no-fund
+          node .github/scripts/check-sdk-pin.mjs
+          git status --short
+
+      - id: app-token
+        if: steps.versions.outputs.bump == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.AUTOMERGE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
+
+      - name: Push the branch and open the PR
+        if: steps.versions.outputs.bump == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+          LOCKED: ${{ steps.versions.outputs.locked }}
+        run: |
+          set -euo pipefail
+          title="chore: bump ${PKG} to ${LATEST}"
+
+          # Every PR ever opened from the bump branch, newest first.
+          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state all --limit 100 --json number,title,state)
+          same=$(jq -r --arg t "$title" '[.[] | select(.title == $t)][0] | if . then "#\(.number) (\(.state))" else "" end' <<<"$prs")
+          if [ -n "$same" ]; then
+            # Open: already asked for. Closed: someone said no. Merged: main moves on the next run.
+            echo "A bump to ${LATEST} already exists: ${same}. Nothing to do."
+            exit 0
+          fi
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "npm changed nothing; nothing to do."
+            exit 0
+          fi
+
+          bot_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add package.json package-lock.json
+          git commit -m "$title"
+          # The branch belongs to this workflow; an older bump on it is replaced.
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
+
+          body="${RUNNER_TEMP}/sdk-bump-body.md"
+          cat > "$body" <<EOF
+          npm has \`${PKG}\` ${LATEST}; \`package-lock.json\` on main pins ${LOCKED:-nothing}.
+
+          This sets the range in \`package.json\` to \`^${LATEST}\` and updates \`package-lock.json\`. Nothing else changes.
+
+          Opened by \`.github/workflows/sdk-bump.yml\`. CI runs on it; PR-Agent and the auto-merge gate skip bot-opened PRs, so a person merges it once CI is green. Close it to decline this version: it won't be reopened.
+          EOF
+
+          open=$(jq -r '[.[] | select(.state == "OPEN")][0].number // ""' <<<"$prs")
+          if [ -n "$open" ]; then
+            gh pr edit "$open" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$body"
+            echo "Updated #${open} to ${LATEST}."
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "$title" --body-file "$body"
+          fi
