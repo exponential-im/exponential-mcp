@@ -22,7 +22,15 @@
     "anthropic"
   ],
   "author": "Exponential",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/exponential-im/exponential-mcp.git"
+  },
+  "homepage": "https://github.com/exponential-im/exponential-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/exponential-im/exponential-mcp/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^12.0.0",
