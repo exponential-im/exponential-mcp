@@ -28,6 +28,7 @@ import { homedir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { DOMAINS, runDomainTool, toolDefinition } from './domains/index.js';
+import { AGENT_GUIDANCE_TOOLS, AGENT_GUIDANCE_TOOL_NAMES, runAgentGuidanceTool } from './agentGuidance.js';
 import { RUN_TOOLS, RUN_TOOL_NAMES, runContextFromEnv, runRunTool } from './runTools.js';
 
 const LEGACY_CONFIG_PATH = join(homedir(), '.config', 'exponential-mcp', 'config.json');
@@ -655,7 +656,7 @@ async function main() {
   const runContext = runContextFromEnv();
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [...(runContext ? RUN_TOOLS : []), ...TOOLS, ...[...DOMAINS.values()].map(toolDefinition)],
+    tools: [...(runContext ? RUN_TOOLS : []), ...TOOLS, ...AGENT_GUIDANCE_TOOLS, ...[...DOMAINS.values()].map(toolDefinition)],
   }));
 
   // Handle tool calls
@@ -666,6 +667,10 @@ async function main() {
       if (runContext && RUN_TOOL_NAMES.has(name)) {
         const result = await runRunTool(client, runContext, name, args);
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      if (AGENT_GUIDANCE_TOOL_NAMES.has(name)) {
+        return await runAgentGuidanceTool(client, name, args as Record<string, unknown> | undefined);
       }
 
       const domain = DOMAINS.get(name);
