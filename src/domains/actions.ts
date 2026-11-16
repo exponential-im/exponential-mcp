@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { splitAssigneeRefs, type ExponentialClient } from 'exponential-sdk';
 import { type Domain, date, id, op } from './framework.js';
 
 const KANBAN_STATUSES = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'] as const;
@@ -23,6 +24,12 @@ const optionalWorkspaceId = z
   .string()
   .optional()
   .describe('Workspace ID (see the `workspaces` tool); omit for all workspaces');
+
+const assigneeRefs = (what: string) =>
+  z
+    .array(z.string().min(1))
+    .optional()
+    .describe(`${what}: user ids or emails (see the \`workspaces\` tool's members). Each must be assignable in the action's project or workspace, or the call is NOT_FOUND`);
 
 const clearableDate = (what: string) => date(what).nullable().optional().describe(`${what} (ISO 8601; null to clear)`);
 
@@ -116,7 +123,8 @@ export const actions: Domain = {
     }),
     create: op({
       effect: 'write',
-      summary: 'Create an action. Priority defaults to "Quick" and status to ACTIVE.',
+      summary:
+        'Create an action. Priority defaults to "Quick" and status to ACTIVE. Pass `assignees` to put it on someone\u2019s Today list; a project action created by an agent with no assignee reaches nobody.',
       params: z.object({
         name: z.string(),
         description: z.string().optional(),
@@ -131,13 +139,21 @@ export const actions: Domain = {
         epicId: id('Epic').optional(),
         effortEstimate: z.number().optional(),
         blockedByIds: z.array(id('Action')).optional().describe('IDs of actions this one is blocked by'),
+        assignees: assigneeRefs('Who to assign, written with the action'),
       }),
-      run: (client, params) => client.actions.create(params),
+      run: (client, { assignees, ...params }) => {
+        const { userIds, emails } = splitAssigneeRefs(assignees ?? []);
+        return client.actions.create({
+          ...params,
+          ...(userIds.length ? { assigneeIds: userIds } : {}),
+          ...(emails.length ? { assigneeEmails: emails } : {}),
+        });
+      },
     }),
     update: op({
       effect: 'write',
       summary:
-        'Update an action. Only the fields you pass change. Complete it with status COMPLETED or kanbanStatus DONE.',
+        'Update an action. Only the fields you pass change. Complete it with status COMPLETED or kanbanStatus DONE. Assignees: `addAssignees` is additive (existing assignees stay), `removeAssignees` removes, `clearAssignees` removes everyone and runs first, so clearAssignees + addAssignees replaces the set.',
       params: z.object({
         id: id('Action'),
         name: z.string().optional(),
@@ -157,8 +173,14 @@ export const actions: Domain = {
           .array(id('Action'))
           .optional()
           .describe('Replaces the full set of blocking action IDs; omit to leave untouched'),
+        addAssignees: assigneeRefs('Assignees to add'),
+        removeAssignees: z
+          .array(z.string().min(1))
+          .optional()
+          .describe('Assignees to remove: user ids or emails. Users not assigned are ignored'),
+        clearAssignees: z.boolean().optional().describe('Remove every assignee (applied before addAssignees)'),
       }),
-      run: (client, params) => client.actions.update(params),
+      run: (client, params) => updateAction(client, params),
     }),
     upsert_by_source: op({
       effect: 'write',
@@ -185,3 +207,28 @@ export const actions: Domain = {
     }),
   },
 };
+
+type UpdateParams = Parameters<ExponentialClient['actions']['update']>[0] & {
+  addAssignees?: string[];
+  removeAssignees?: string[];
+  clearAssignees?: boolean;
+};
+
+/**
+ * Field changes go to `actions.update`; assignees to `assign` / `unassign`,
+ * in the order clear, remove, add. An update that only touches assignees
+ * skips the field update. Returns the action as the last call left it.
+ */
+export async function updateAction(client: ExponentialClient, params: UpdateParams): Promise<unknown> {
+  const { addAssignees, removeAssignees, clearAssignees, ...fields } = params;
+  const { id: actionId, ...patch } = fields;
+  const hasFieldChanges = Object.values(patch).some((v) => v !== undefined);
+  const hasAssigneeChanges = Boolean(clearAssignees || removeAssignees?.length || addAssignees?.length);
+
+  let result: unknown;
+  if (hasFieldChanges || !hasAssigneeChanges) result = await client.actions.update(fields);
+  if (clearAssignees) result = await client.actions.unassign(actionId, { all: true });
+  if (removeAssignees?.length) result = await client.actions.unassign(actionId, splitAssigneeRefs(removeAssignees));
+  if (addAssignees?.length) result = await client.actions.assign(actionId, splitAssigneeRefs(addAssignees));
+  return result;
+}
