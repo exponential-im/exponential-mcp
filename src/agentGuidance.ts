@@ -4,6 +4,7 @@
  * server adds later reach the model. It is guidance, not authority (ADR-0071).
  */
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { reads } from './annotations.js';
 import type { ExponentialClient } from 'exponential-sdk';
 
 const GUIDANCE_NOTE =
@@ -12,6 +13,7 @@ const GUIDANCE_NOTE =
 export const AGENT_GUIDANCE_TOOLS: Tool[] = [
   {
     name: 'get_agent_context',
+    annotations: reads('Get agent context'),
     description: [
       "Get the agent context for a workspace (and optionally a project): the workspace's and project's AI instructions, the project's accepted decisions (label, statement, link; `omitted` counts the rest) and, for callers with a write role, accepted ADRs (label, title, link).",
       'Call it before starting work in a workspace or project. Fetch a decision or ADR link for its full reasoning.',
@@ -28,6 +30,7 @@ export const AGENT_GUIDANCE_TOOLS: Tool[] = [
   },
   {
     name: 'get_agent_method',
+    annotations: reads('Get agent method'),
     description: [
       'Get the current published Exponential method: the documents (Markdown) describing how work is planned and run, with version and content hash.',
       GUIDANCE_NOTE,

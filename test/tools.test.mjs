@@ -90,3 +90,26 @@ test('a run tool is called with the run context', async () => {
   assert.equal(finished.isError, undefined);
   assert.deepEqual(calls, [['run-1', { status: 'SUCCEEDED', summary: 'Done', readyToClose: true }, 'laptop']]);
 });
+
+test('every tool carries title, readOnlyHint and destructiveHint, with and without a run context', () => {
+  for (const options of [{}, { runContext: { runId: 'run-1' } }]) {
+    for (const tool of listTools(options)) {
+      const a = tool.annotations;
+      assert.equal(typeof a?.title, 'string', `${tool.name} title`);
+      assert.ok(a.title.length > 0, `${tool.name} title is empty`);
+      assert.equal(typeof a.readOnlyHint, 'boolean', `${tool.name} readOnlyHint`);
+      assert.equal(typeof a.destructiveHint, 'boolean', `${tool.name} destructiveHint`);
+    }
+  }
+});
+
+test('hand-written reads are read-only and writes are not', () => {
+  const byName = new Map(listTools({ runContext: { runId: 'r' } }).map((t) => [t.name, t.annotations]));
+  for (const name of ['get_workspaces', 'get_todays_actions', 'search', 'get_agent_context', 'report_progress']) {
+    assert.equal(byName.get(name).readOnlyHint, true, name);
+  }
+  for (const name of ['create_action', 'update_project', 'append_meeting_notes', 'ask_owner', 'finish_run']) {
+    assert.equal(byName.get(name).readOnlyHint, false, name);
+    assert.equal(byName.get(name).destructiveHint, false, name);
+  }
+});

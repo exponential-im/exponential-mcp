@@ -8,6 +8,7 @@
  */
 
 import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
+import { reads, writes } from './annotations.js';
 import type {
   Action,
   ExponentialClient,
@@ -103,6 +104,7 @@ function meetingDetail(m: Meeting, includeTranscript: boolean): Record<string, u
 const TOOLS: Tool[] = [
   {
     name: 'get_projects',
+    annotations: reads('List projects'),
     description: 'List all projects in Exponential. Returns project names, status, and progress.',
     inputSchema: {
       type: 'object',
@@ -116,6 +118,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_project',
+    annotations: reads('Get project'),
     description:
       'Fetch one project with its relations: the objectives and key results it is linked to, DRI, team, dates, description, and linked meetings. get_projects returns none of the OKR links, so this is the tool for "what is this project driving?". It does NOT include the project\'s tasks — use get_actions with projectId for those. Accepts a project ID, a slug, or the slug-id form from app URLs.',
     inputSchema: {
@@ -131,6 +134,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'update_project',
+    annotations: writes('Update project'),
     description:
       'Update a project: rename, change status or priority, edit the description, set dates, or re-link it to objectives / key results. Only the fields you pass are changed. goalIds and keyResultIds REPLACE the existing links wholesale — read get_project first and pass the full set you want to keep. An empty keyResultIds clears the key-result links; an empty goalIds is ignored by the server.',
     inputSchema: {
@@ -176,6 +180,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_actions',
+    annotations: reads('List actions'),
     description:
       'List actions/tasks, optionally filtered by project or status. This is a flat list with no date filtering — to answer "what should I work on today" or "what am I behind on", use get_todays_actions instead.',
     inputSchema: {
@@ -195,6 +200,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_todays_actions',
+    annotations: reads('Today\'s actions'),
     description:
       "What is on the user's plate right now, split into overdue / today / inbox. This is the same set the /today page renders, across all workspaces. Use this FIRST for any question about today, this week, priorities, what to work on, or what the user is behind on — it is the only tool that surfaces overdue work. Returns action IDs, so pair it with update_action, defer_actions, or reschedule_actions to act on what it finds.",
     inputSchema: {
@@ -209,6 +215,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_overdue_triage',
+    annotations: reads('Overdue triage'),
     description:
       'Explain WHY the overdue pile is the size it is, before proposing what to do about it. Splits overdue actions into "cohorts" — groups sharing one exact timestamp, the fingerprint of a bulk write like a generated project plan, which were almost certainly never individually due — and "loose" individually-dated actions, which are real missed commitments. Use this whenever the user has a lot of overdue work: recommend defer_actions (amnesty) for cohorts and a real decision for loose items. Rescheduling a cohort just re-inflicts the pile tomorrow.',
     inputSchema: {
@@ -223,6 +230,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'update_action',
+    annotations: writes('Update action'),
     description:
       'Update an action: rename, re-prioritise, move project, change status, or set its dates. scheduledStart is the "do date" — when the user plans to work on it — and it is what /today partitions on, taking precedence over dueDate. To move something out of the overdue bucket you must set scheduledStart; changing dueDate alone will not do it.',
     inputSchema: {
@@ -255,6 +263,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'defer_actions',
+    annotations: writes('Defer actions'),
     description:
       'Amnesty: clear the dates on these actions so they fall back to their project backlog untimed. Use for work that was never really due on the date it carries — most often a bulk-created cohort from get_overdue_triage. The actions stay ACTIVE and are not deleted or archived; they simply stop counting as overdue. Prefer this over reschedule_actions when the dates were never a real commitment.',
     inputSchema: {
@@ -271,6 +280,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'reschedule_actions',
+    annotations: writes('Reschedule actions'),
     description:
       'Move actions to a new do-date, for work that genuinely is still due, just later. Sets scheduledStart, pushing dueDate forward only where it would otherwise fall before it. If the actions were bulk-created and never individually due, use defer_actions instead — rescheduling them only re-inflicts the same pile tomorrow.',
     inputSchema: {
@@ -291,6 +301,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'create_action',
+    annotations: writes('Create action'),
     description: 'Create a new action/task. Supports natural language with dates and project names.',
     inputSchema: {
       type: 'object',
@@ -305,6 +316,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'complete_action',
+    annotations: writes('Complete action'),
     description: 'Mark an action as completed',
     inputSchema: {
       type: 'object',
@@ -319,6 +331,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_goals',
+    annotations: reads('List objectives'),
     description:
       "List objectives (goals). Each objective carries its linked projects, which is how work ladders up to an OKR: every action has a projectId. Objectives have INTEGER ids — key results, which are separate, have CUIDs (see get_key_results). Use tree: true for the annual → quarterly cascade.",
     inputSchema: {
@@ -347,6 +360,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_key_results',
+    annotations: reads('List key results'),
     description:
       "List key results — the measurable half of an OKR. By default groups them under their objectives (the richest read: one call for 'how is the quarter going'). Pass flat: true for a bare list. Key result ids are CUIDs; the goalId tying one to its objective is an integer.",
     inputSchema: {
@@ -379,6 +393,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_meetings',
+    annotations: reads('List meetings'),
     description:
       'List meetings the user can see — ones they own or attended, plus those on their projects and workspaces — newest first. Each row has metadata, participants, linked actions and a short preview of the AI summary; the full summary, notes and transcript are only in get_meeting. Use this to answer "when did I last meet Y" or to find a meeting ID, then get_meeting for what was actually said.',
     inputSchema: {
@@ -407,6 +422,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_meeting',
+    annotations: reads('Get meeting'),
     description:
       'Fetch one meeting in full: participants with speaker labels, linked actions, the AI summary, and the meeting notes. The raw transcript is omitted unless includeTranscript is true — it can be tens of thousands of characters, so only pull it when the summary and notes are not enough.',
     inputSchema: {
@@ -423,6 +439,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'create_meeting',
+    annotations: writes('Create meeting'),
     description:
       'Record a meeting in Exponential from a transcript or notes the user gives you. transcription is required by the server — if the user only has notes, put the notes text there too. A project-linked meeting inherits its project\'s workspace.',
     inputSchema: {
@@ -460,6 +477,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'update_meeting',
+    annotations: writes('Update meeting'),
     description:
       'Edit a meeting\'s title, description, summary, date, or REPLACE its notes wholesale. To add to existing notes without rewriting them, use append_meeting_notes instead. Only the fields you pass are changed.',
     inputSchema: {
@@ -480,6 +498,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'append_meeting_notes',
+    annotations: writes('Append meeting notes'),
     description:
       'Append a block of text to a meeting\'s notes, separated by a blank line, creating the notes if there are none yet. This is the safe way to add a follow-up, decision, or action list to a meeting without clobbering what is already there.',
     inputSchema: {
@@ -493,6 +512,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'search',
+    annotations: reads('Search'),
     description:
       "Global search across everything the user can access — projects, actions/tasks, goals, workspaces, pages, meetings and more. Same coverage as the app's Cmd+K palette; matches titles. Set semantic: true to search the workspace's Knowledge index by meaning instead (meetings, resources, documents and pages, each with its best-matching passage) — that needs workspaceId. For pages only, the `pages` tool's search operation is more precise. Returns typed results with ids, workspace, and app URL.",
     inputSchema: {
@@ -525,6 +545,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_workspaces',
+    annotations: reads('List workspaces'),
     description: 'List all workspaces the user has access to',
     inputSchema: {
       type: 'object',
