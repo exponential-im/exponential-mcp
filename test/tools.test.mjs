@@ -49,3 +49,44 @@ test('callTool returns an error result for an unknown tool instead of throwing',
   assert.equal(result.isError, true);
   assert.match(result.content[0].text, /Unknown tool: no_such_tool/);
 });
+
+const RUN_TOOL_NAMES = ['report_progress', 'ask_owner', 'finish_run'];
+
+test('run tools are absent without a run context', () => {
+  for (const options of [undefined, {}, { runContext: null }]) {
+    const names = listTools(options).map((t) => t.name);
+    for (const runTool of RUN_TOOL_NAMES) assert.ok(!names.includes(runTool), `${runTool} listed`);
+  }
+});
+
+test('all three run tools are listed with a run context', () => {
+  const names = listTools({ runContext: { runId: 'run-1' } }).map((t) => t.name);
+  assert.deepEqual(names.slice(0, 3), RUN_TOOL_NAMES);
+  assert.equal(names.length, listTools().length + 3);
+});
+
+test('a run tool cannot be called without a run context', async () => {
+  const result = await callTool({}, 'report_progress', { text: 'working' });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /Unknown tool: report_progress/);
+});
+
+test('a run tool is called with the run context', async () => {
+  const calls = [];
+  const client = {
+    agentRuns: {
+      finish: async (...args) => {
+        calls.push(args);
+        return { finished: true };
+      },
+    },
+  };
+  const runContext = { runId: 'run-1', runnerId: 'laptop' };
+
+  const progress = await callTool(client, 'report_progress', { text: 'working' }, { runContext });
+  assert.deepEqual(JSON.parse(progress.content[0].text), { ok: true, text: 'working' });
+
+  const finished = await callTool(client, 'finish_run', { summary: 'Done', readyToClose: true }, { runContext });
+  assert.equal(finished.isError, undefined);
+  assert.deepEqual(calls, [['run-1', { status: 'SUCCEEDED', summary: 'Done', readyToClose: true }, 'laptop']]);
+});

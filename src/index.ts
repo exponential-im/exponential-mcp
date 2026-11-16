@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'fs';
 import { homedir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { RUN_TOOLS, RUN_TOOL_NAMES, runContextFromEnv, runRunTool } from './runTools.js';
+import { runContextFromEnv } from './runTools.js';
 import { callTool, listTools } from './tools.js';
 
 const LEGACY_CONFIG_PATH = join(homedir(), '.config', 'exponential-mcp', 'config.json');
@@ -141,24 +141,13 @@ async function main() {
   const runContext = runContextFromEnv();
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [...(runContext ? RUN_TOOLS : []), ...listTools()],
+    tools: listTools({ runContext }),
   }));
 
   // Handle tool calls
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-
-    if (runContext && RUN_TOOL_NAMES.has(name)) {
-      try {
-        const result = await runRunTool(client, runContext, name, args);
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
-      }
-    }
-
-    return callTool(client, name, args);
+    return callTool(client, name, args, { runContext });
   });
 
   // Start server

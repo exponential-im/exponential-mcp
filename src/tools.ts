@@ -22,6 +22,18 @@ import type {
 } from 'exponential-sdk';
 import { DOMAINS, runDomainTool, toolDefinition } from './domains/index.js';
 import { AGENT_GUIDANCE_TOOLS, AGENT_GUIDANCE_TOOL_NAMES, runAgentGuidanceTool } from './agentGuidance.js';
+import { RUN_TOOLS, RUN_TOOL_NAMES, runRunTool, type RunContext } from './runTools.js';
+
+export type { RunContext } from './runTools.js';
+
+export interface ToolOptions {
+  /**
+   * The Agent run this session serves. The three run tools (`report_progress`,
+   * `ask_owner`, `finish_run`) are listed and callable only when it is set; a
+   * host that is not running an Agent run never passes it.
+   */
+  runContext?: RunContext | null;
+}
 
 /**
  * `undefined` = leave the field alone, `null` = clear it, otherwise a Date.
@@ -522,8 +534,13 @@ const TOOLS: Tool[] = [
 ];
 
 /** Every tool, in the order `tools/list` returns them. */
-export function listTools(): Tool[] {
-  return [...TOOLS, ...AGENT_GUIDANCE_TOOLS, ...[...DOMAINS.values()].map(toolDefinition)];
+export function listTools(options: ToolOptions = {}): Tool[] {
+  return [
+    ...(options.runContext ? RUN_TOOLS : []),
+    ...TOOLS,
+    ...AGENT_GUIDANCE_TOOLS,
+    ...[...DOMAINS.values()].map(toolDefinition),
+  ];
 }
 
 /**
@@ -533,12 +550,19 @@ export function listTools(): Tool[] {
 export async function callTool(
   client: ExponentialClient,
   name: string,
-  args: Record<string, unknown> | undefined
+  args: Record<string, unknown> | undefined,
+  options: ToolOptions = {}
 ): Promise<CallToolResult> {
   // create_action needs a procedure the SDK does not wrap.
   const trpcClient = (client as unknown as { client: any }).client;
+  const { runContext } = options;
 
   try {
+    if (runContext && RUN_TOOL_NAMES.has(name)) {
+      const result = await runRunTool(client, runContext, name, args);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }
+
     if (AGENT_GUIDANCE_TOOL_NAMES.has(name)) {
       return await runAgentGuidanceTool(client, name, args as Record<string, unknown> | undefined);
     }
