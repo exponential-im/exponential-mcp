@@ -41,12 +41,14 @@ export const time: Domain = {
     'Time entries logged against actions (the Daily worklog write path). An entry always belongs to the person whose time it was: under an agent key it is owned by the agent’s owner and forced to PROPOSED until they confirm the day. Actions live in the `actions` tool.',
   operations: {
     log: op({
+      effect: 'write',
       summary:
         'Log one completed entry with explicit bounds; never touches the running Timer. With sourceRef it upserts per owner (updates a PROPOSED entry, leaves a CONFIRMED one); without, every call creates a row. Outcome: created / updated / left / merged / dropped.',
       params: z.object(entryFields),
       run: (client, params) => client.time.log(params),
     }),
     log_batch: op({
+      effect: 'write',
       summary:
         'Log many entries in order, one call each; a failure is reported per entry ({ index, success, error }) instead of failing the batch. `defaults` fill fields an entry omits.',
       params: z.object({
@@ -56,18 +58,21 @@ export const time: Domain = {
       run: (client, { entries, defaults }) => client.time.logBatch(entries, defaults),
     }),
     confirm_day: op({
+      effect: 'write',
       summary:
         'Flip every PROPOSED entry of yours starting on that day to CONFIRMED, moving the actions’ spent time. Human only — agent keys are FORBIDDEN. Returns { confirmed }.',
       params: z.object({ date: day, workspaceId: optionalWorkspaceId }),
       run: (client, { date, workspaceId }) => client.time.confirmDay(date, workspaceId),
     }),
     day_report: op({
+      effect: 'read',
       summary:
         'One day’s time as the /time Day tab shows it: entries joined to action/ticket/project/product, attention vs session vs agent-run minutes, per-product and per-action roll-ups. Under an agent key it is the owner’s day.',
       params: z.object({ date: day, workspaceId: optionalWorkspaceId }),
       run: (client, { date, workspaceId }) => client.time.dayReport(date, workspaceId),
     }),
     list: op({
+      effect: 'read',
       summary: 'Your raw time entries touching one day, oldest first, each with its status.',
       params: z.object({ date: day, workspaceId: optionalWorkspaceId }),
       run: (client, { date, workspaceId }) => client.time.list(date, workspaceId),

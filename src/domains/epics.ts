@@ -10,6 +10,7 @@ export const epics: Domain = {
     'Epics: large bodies of work in a workspace that group tickets (`tickets`) and actions (`actions`). Each new epic belongs to a product (`products`); older ones may have none.',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'List the epics in a workspace (all products), ordered by status then name.',
       params: z.object({
         workspaceId,
@@ -18,11 +19,13 @@ export const epics: Domain = {
       run: (client, params) => client.epics.list(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one epic with its owner, tickets and actions.',
       params: z.object({ id: id('Epic') }),
       run: (client, { id }) => client.epics.get(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create an epic owned by you. Priority defaults to MEDIUM.',
       params: z.object({
         workspaceId,
@@ -36,6 +39,7 @@ export const epics: Domain = {
       run: (client, params) => client.epics.create(params),
     }),
     update: op({
+      effect: 'write',
       summary: 'Update an epic. Only the fields you pass change.',
       params: z.object({
         id: id('Epic'),
@@ -49,6 +53,7 @@ export const epics: Domain = {
       run: (client, params) => client.epics.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary:
         'Delete an epic permanently (only its owner or a workspace owner/admin may). Its tickets and actions are kept but unlinked.',
       params: z.object({ id: id('Epic') }),

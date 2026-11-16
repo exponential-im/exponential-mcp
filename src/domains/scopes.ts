@@ -9,11 +9,13 @@ export const scopes: Domain = {
     'Feature scopes: shippable increments of a feature ("V1", "V2: auto-sync"), each with its own lifecycle. Scope status rolls up to the parent feature (see `features`); requirements can be pinned to a scope (see `requirements`).',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'List a feature’s scopes in display order.',
       params: z.object({ featureId: id('Feature') }),
       run: (client, params) => client.scopes.list(params),
     }),
     create: op({
+      effect: 'write',
       summary: 'Add a scope to the end of a feature’s list. Status defaults to PLANNED; rolls up the feature’s status.',
       params: z.object({
         featureId: id('Feature'),
@@ -25,6 +27,7 @@ export const scopes: Domain = {
       run: (client, params) => client.scopes.create(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update a scope. Only the fields you pass change; setting SHIPPED stamps shippedAt now unless you pass one, and any status change rolls up to the feature.',
       params: z.object({
@@ -38,6 +41,7 @@ export const scopes: Domain = {
       run: (client, params) => client.scopes.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary:
         'Delete a scope permanently. Requirements, tickets and pages pinned to it are kept but unpinned; its comments are deleted.',
       params: z.object({ id: id('Scope') }),

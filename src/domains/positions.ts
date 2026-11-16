@@ -21,17 +21,20 @@ export const positions: Domain = {
     "A workspace's roles & responsibilities (Positions): what each role takes on (remit), what it is not accountable for, and who holds it — humans and agents alike. Shown on the workspace settings page. Routing data only; it never grants access. Every write needs the user's own API key (agent keys are refused) and owner/admin, except that a holder who is at least a member may edit their Position's remit. Resolve holders with `workspaces` list_members.",
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'Every Position with its holders, plus one row per member: { positions, members: [{ userId, positionIds, remitGap }] }. remitGap = no stated remit.',
       params: z.object({ workspaceId }),
       run: (client, { workspaceId }) => client.positions.list(workspaceId),
     }),
     coverage: op({
+      effect: 'read',
       summary: 'How many members have a stated remit, and whether to offer an import.',
       params: z.object({ workspaceId }),
       run: (client, { workspaceId }) => client.positions.coverage(workspaceId),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a Position (owner/admin). A duplicate title is CONFLICT.',
       params: z.object({
         workspaceId,
@@ -43,6 +46,7 @@ export const positions: Domain = {
       run: (client, params) => client.positions.create(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Edit a Position. Pass at least one field. holderUserIds REPLACES the holder set; notAccountableFor null or "" clears it.',
       params: z.object({
@@ -56,17 +60,20 @@ export const positions: Domain = {
       run: (client, params) => client.positions.update(params),
     }),
     set_holders: op({
+      effect: 'write',
       summary: 'Replace who holds a Position (owner/admin). An empty list leaves it unheld.',
       params: z.object({ workspaceId, positionId, userIds: holderUserIds }),
       run: (client, { workspaceId, positionId, userIds }) =>
         client.positions.setHolders(workspaceId, positionId, userIds),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a Position (owner/admin). Its holdings go with it.',
       params: z.object({ workspaceId, positionId }),
       run: (client, { workspaceId, positionId }) => client.positions.delete(workspaceId, positionId),
     }),
     import_many: op({
+      effect: 'write',
       summary:
         'Upsert 1–50 Positions by title (case-insensitive; never renames), all or nothing (owner/admin). An update replaces the remit, keeps notAccountableFor when omitted ("" clears), and only ADDS holders. Run dryRun: true first and show the plan.',
       params: z.object({

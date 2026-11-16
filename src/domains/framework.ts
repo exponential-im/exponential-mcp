@@ -13,7 +13,14 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ExponentialClient } from 'exponential-sdk';
 
+/**
+ * What an operation does to data. `read` changes nothing; `write` creates or
+ * changes something; `delete` removes something. Drives the tool annotations.
+ */
+export type Effect = 'read' | 'write' | 'delete';
+
 export interface Operation<S extends z.AnyZodObject = z.AnyZodObject> {
+  effect: Effect;
   /** One line: what the operation does and anything surprising about it. */
   summary: string;
   params: S;
@@ -57,6 +64,25 @@ function paramsJsonSchema(params: z.AnyZodObject): unknown {
   return schema;
 }
 
+/** `key_results` (or `keyResults`) → `Key results`. */
+function titleFromName(name: string): string {
+  const words = name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * A domain tool is read-only only when every operation reads, and destructive
+ * when any operation deletes.
+ */
+export function domainAnnotations(domain: Domain): NonNullable<Tool['annotations']> {
+  const effects = Object.values(domain.operations).map((operation) => operation.effect);
+  return {
+    title: titleFromName(domain.name),
+    readOnlyHint: effects.every((effect) => effect === 'read'),
+    destructiveHint: effects.some((effect) => effect === 'delete'),
+  };
+}
+
 export function toolDefinition(domain: Domain): Tool {
   const operations = Object.keys(domain.operations);
   const lines = Object.entries(domain.operations).map(
@@ -83,6 +109,7 @@ export function toolDefinition(domain: Domain): Tool {
       },
       required: ['operation'],
     },
+    annotations: domainAnnotations(domain),
   };
 }
 

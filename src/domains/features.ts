@@ -19,6 +19,7 @@ export const features: Domain = {
     'Product features: long-lived capabilities of a product (see `products`), filed under an area (`areas`). A feature’s shippable increments are in `scopes`, its "shall" statements in `requirements`, and its spec documents are Knowledge pages (`pages`) linked here.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List a product’s features, newest first, with goal, area, lean key-result links and scope/requirement/ticket counts.',
       params: z.object({
@@ -28,11 +29,13 @@ export const features: Domain = {
       run: (client, params) => client.features.list(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one feature with its scopes, requirements and key-result progress.',
       params: z.object({ id: id('Feature') }),
       run: (client, { id }) => client.features.get(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a feature in a product. Status defaults to IDEA.',
       params: z.object({
         productId: id('Product'),
@@ -48,6 +51,7 @@ export const features: Domain = {
       run: (client, params) => client.features.create(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update a feature. Only the fields you pass change; a feature that was ever live cannot be ARCHIVED (deprecate it instead).',
       params: z.object({
@@ -67,12 +71,14 @@ export const features: Domain = {
       run: (client, params) => client.features.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary:
         'Delete a feature permanently, cascading its scopes, requirements, user stories, comments and page links; linked tickets are kept but unlinked.',
       params: z.object({ id: id('Feature') }),
       run: (client, { id }) => client.features.delete(id),
     }),
     link_page: op({
+      effect: 'write',
       summary:
         'Link a Knowledge page (PRD, spec, research) to a feature. Idempotent: re-linking updates the scope pin. Page must be in the feature’s workspace.',
       params: z.object({
@@ -86,6 +92,7 @@ export const features: Domain = {
       run: (client, params) => client.features.linkPage(params),
     }),
     unlink_page: op({
+      effect: 'write',
       summary: 'Unlink a page from a feature. The page itself is not deleted; no-op if not linked.',
       params: z.object({
         featureId: id('Feature'),

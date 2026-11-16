@@ -22,6 +22,7 @@ export const decisions: Domain = {
     'The Decision Log: decisions and open questions (an open question is a decision with status OPEN — there is no separate model), optionally sourced from a meeting with transcript evidence. Meetings are in `meetings`; decisions can be linked to `tickets` and `features` as "implemented by".',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'Confirmed decisions in a workspace, newest decided first. Never includes drafts (see list_for_meeting).',
       params: z.object({
         workspaceId,
@@ -40,28 +41,33 @@ export const decisions: Domain = {
       run: (client, params) => client.decisions.list(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one decision with its deciders, evidence, links and supersession chain.',
       params: z.object({ workspaceId, decisionId }),
       run: (client, { workspaceId, decisionId }) => client.decisions.get(workspaceId, decisionId),
     }),
     list_for_meeting: op({
+      effect: 'read',
       summary:
         'Decisions and open questions logged from one meeting. Includes drafts if you can edit the meeting. No workspaceId needed.',
       params: z.object({ transcriptionSessionId: meetingId }),
       run: (client, { transcriptionSessionId }) => client.decisions.listForMeeting(transcriptionSessionId),
     }),
     list_for_adr: op({
+      effect: 'read',
       summary: 'Decisions formalised as one ADR ("Decided in").',
       params: z.object({ workspaceId, adrDocumentId: id('ADR document') }),
       run: (client, { workspaceId, adrDocumentId }) => client.decisions.listForAdr(workspaceId, adrDocumentId),
     }),
     extract_drafts: op({
+      effect: 'write',
       summary:
         'AI-extract DRAFT decisions from a meeting’s notes and transcript for review. Idempotent: existing drafts come back; a meeting with confirmed decisions reports alreadyPublished.',
       params: z.object({ transcriptionSessionId: meetingId }),
       run: (client, { transcriptionSessionId }) => client.decisions.extractDrafts(transcriptionSessionId),
     }),
     create: op({
+      effect: 'write',
       summary:
         'Log a decision (status defaults to PROPOSED). Pass status "OPEN" for an open question and transcriptionSessionId to attach it to a meeting.',
       params: z.object({
@@ -110,6 +116,7 @@ export const decisions: Domain = {
       run: (client, params) => client.decisions.create(params),
     }),
     update: op({
+      effect: 'write',
       summary: 'Edit a decision’s content and scope. Only the fields you pass change; status goes through set_status.',
       params: z.object({
         workspaceId,
@@ -124,6 +131,7 @@ export const decisions: Domain = {
       run: (client, params) => client.decisions.update(params),
     }),
     set_status: op({
+      effect: 'write',
       summary: 'Lifecycle transition — e.g. answer an open question by moving OPEN → ACCEPTED.',
       params: z.object({
         workspaceId,
@@ -138,18 +146,21 @@ export const decisions: Domain = {
       run: (client, params) => client.decisions.setStatus(params),
     }),
     link_ticket: op({
+      effect: 'write',
       summary: 'Mark a decision as "implemented by" a ticket. Idempotent: an existing link is returned.',
       params: z.object({ workspaceId, decisionId, ticketId: id('Ticket') }),
       run: (client, { workspaceId, decisionId, ticketId }) =>
         client.decisions.linkTicket(workspaceId, decisionId, ticketId),
     }),
     link_feature: op({
+      effect: 'write',
       summary: 'Mark a decision as "implemented by" a feature. Idempotent: an existing link is returned.',
       params: z.object({ workspaceId, decisionId, featureId: id('Feature') }),
       run: (client, { workspaceId, decisionId, featureId }) =>
         client.decisions.linkFeature(workspaceId, decisionId, featureId),
     }),
     unlink: op({
+      effect: 'write',
       summary: 'Remove one ticket/feature link.',
       params: z.object({
         workspaceId,
@@ -158,16 +169,19 @@ export const decisions: Domain = {
       run: (client, { workspaceId, linkId }) => client.decisions.unlink(workspaceId, linkId),
     }),
     confirm_draft: op({
+      effect: 'write',
       summary: 'Publish a DRAFT decision into the log.',
       params: z.object({ workspaceId, decisionId }),
       run: (client, { workspaceId, decisionId }) => client.decisions.confirmDraft(workspaceId, decisionId),
     }),
     reject_draft: op({
+      effect: 'write',
       summary: 'Reject a DRAFT decision. Confirmed decisions cannot be rejected — deprecate or supersede via set_status.',
       params: z.object({ workspaceId, decisionId }),
       run: (client, { workspaceId, decisionId }) => client.decisions.rejectDraft(workspaceId, decisionId),
     }),
     delete_draft: op({
+      effect: 'delete',
       summary: 'Hard-delete a draft or rejected decision. Refused for confirmed decisions — the log keeps its history.',
       params: z.object({ workspaceId, decisionId }),
       run: (client, { workspaceId, decisionId }) => client.decisions.deleteDraft(workspaceId, decisionId),
