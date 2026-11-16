@@ -38,6 +38,43 @@ test('callTool runs a hand-written tool through the client', async () => {
   assert.deepEqual(JSON.parse(result.content[0].text), [{ id: 'w1', name: 'Acme' }]);
 });
 
+test('create_action replies with the created action name, id and url', async () => {
+  const calls = [];
+  const client = {
+    client: {
+      action: {
+        quickCreate: {
+          mutate: async (input) => {
+            calls.push(input);
+            return {
+              success: true,
+              message: 'Action created',
+              title: 'Call Sam',
+              url: 'https://example.test/actions?actionId=act_123',
+              action: {
+                id: 'act_123',
+                name: 'Call Sam',
+                priority: 'Quick',
+                status: 'ACTIVE',
+                dueDate: null,
+                project: null,
+              },
+              parsing: null,
+            };
+          },
+        },
+      },
+    },
+  };
+  const result = await callTool(client, 'create_action', { text: 'Call Sam' });
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(calls, [{ name: 'Call Sam' }]);
+  const text = result.content[0].text;
+  assert.match(text, /^Created action: Call Sam \(ID: act_123\)/);
+  assert.match(text, /https:\/\/example\.test\/actions\?actionId=act_123/);
+  assert.doesNotMatch(text, /undefined/);
+});
+
 test('callTool runs a domain tool', async () => {
   const result = await callTool({}, 'workspaces', { operation: 'describe' });
   assert.equal(result.isError, undefined);
