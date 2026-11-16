@@ -14,11 +14,13 @@ export const stories: Domain = {
     'User stories on a feature (As a / I want / So that, plus acceptance criteria), optionally grouped under one of the feature’s scopes. Features live in `features`, scopes in `scopes`.',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'List a feature’s user stories in display order.',
       params: z.object({ featureId: id('Feature') }),
       run: (client, params) => client.userStories.list(params),
     }),
     create: op({
+      effect: 'write',
       summary: 'Add a user story to a feature, appended at the end of the display order.',
       params: z.object({
         featureId: id('Feature'),
@@ -28,6 +30,7 @@ export const stories: Domain = {
       run: (client, params) => client.userStories.create(params),
     }),
     update: op({
+      effect: 'write',
       summary: 'Update a user story. Only the fields you pass change.',
       params: z.object({
         id: id('User story'),
@@ -41,6 +44,7 @@ export const stories: Domain = {
       run: (client, params) => client.userStories.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a user story permanently.',
       params: z.object({ id: id('User story') }),
       run: (client, { id }) => client.userStories.delete(id),

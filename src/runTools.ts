@@ -19,6 +19,7 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { reads, writes } from './annotations.js';
 import type { ExponentialClient } from 'exponential-sdk';
 
 export interface RunContext {
@@ -65,18 +66,22 @@ function schema(params: z.AnyZodObject): Tool['inputSchema'] {
 export const RUN_TOOLS: Tool[] = [
   {
     name: 'report_progress',
+    // Writes nothing: the runner records the note from the session's own tool stream.
+    annotations: reads('Report progress'),
     description:
       'Post a one-line progress note to this run\'s transcript (owner-visible only; nobody is notified). Use it when you move to a new phase of the work.',
     inputSchema: schema(reportProgressParams),
   },
   {
     name: 'ask_owner',
+    annotations: writes('Ask owner'),
     description:
       'Ask your owner a question you cannot answer yourself and PAUSE this run. The question is posted on the action mentioning the owner; their reply resumes the work in a new run. This must be your LAST call: do not call finish_run after it and do not keep working — stop immediately.',
     inputSchema: schema(askOwnerParams),
   },
   {
     name: 'finish_run',
+    annotations: writes('Finish run'),
     description:
       'Finish this run. Call it exactly once, as your last action, with a public summary and whether the action is ready for the owner to close. Never mark the action complete yourself; the owner confirms from their inbox.',
     inputSchema: schema(finishRunParams),

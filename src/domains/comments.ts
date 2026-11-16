@@ -50,6 +50,7 @@ export const comments: Domain = {
     'Comments on actions, features (PRDs), knowledge pages, goals (objectives) and tickets — pick the entity with `target`. Threaded replies and anchored-thread resolve/unresolve exist only on features. Editing and deleting are author-only.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List comments on an entity. All targets. For tickets this reads the ticket detail (newest first) — there is no separate list endpoint.',
       params: z.object({ target, targetId }),
@@ -69,6 +70,7 @@ export const comments: Domain = {
       },
     }),
     add: op({
+      effect: 'write',
       summary:
         'Add a top-level comment. All targets; scopeId/threadId/quotedText are feature-only, parentUpdateId is goal-only.',
       params: z.object({
@@ -98,6 +100,7 @@ export const comments: Domain = {
       },
     }),
     update: op({
+      effect: 'write',
       summary: 'Replace a comment’s text. All targets; author-only.',
       params: z.object({ target, commentId, body }),
       run: (client, { target: t, commentId, body }) => {
@@ -116,6 +119,7 @@ export const comments: Domain = {
       },
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a comment permanently. All targets; author-only. On features, deleting a root also deletes its replies.',
       params: z.object({ target, commentId }),
       run: (client, { target: t, commentId }) => {
@@ -134,6 +138,7 @@ export const comments: Domain = {
       },
     }),
     reply: op({
+      effect: 'write',
       summary: 'Reply to a comment. Feature target only. Replies to replies still hang off the root comment.',
       params: z.object({
         target,
@@ -146,6 +151,7 @@ export const comments: Domain = {
       },
     }),
     resolve: op({
+      effect: 'write',
       summary: 'Mark an anchored comment thread resolved. Feature target only; only anchored threads have a threadId.',
       params: z.object({
         target,
@@ -158,6 +164,7 @@ export const comments: Domain = {
       },
     }),
     unresolve: op({
+      effect: 'write',
       summary: 'Reopen a resolved anchored comment thread. Feature target only.',
       params: z.object({
         target,

@@ -9,6 +9,7 @@ export const projects: Domain = {
     'Projects: containers of actions, optionally linked to a product, objectives (goals) and key results. Their actions are in the `actions` tool; workspaces in `workspaces`.',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'List projects you can see. Carries no OKR links — use get for those.',
       params: z.object({
         workspaceId: z
@@ -20,6 +21,7 @@ export const projects: Domain = {
       run: (client, params) => client.projects.list(params),
     }),
     get: op({
+      effect: 'read',
       summary:
         'Get one project with its actions, linked objectives and key results, DRI and team — the only way to see what a project is driving.',
       params: z.object({
@@ -28,6 +30,7 @@ export const projects: Domain = {
       run: (client, { id }) => client.projects.get(id),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update a project. Only the fields you pass change (omitted name/status/priority cost one extra read).',
       params: z.object({
@@ -54,6 +57,7 @@ export const projects: Domain = {
       run: (client, params) => client.projects.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a project AND all its actions. No undo.',
       params: z.object({ id: id('Project') }),
       run: (client, { id }) => client.projects.delete(id),

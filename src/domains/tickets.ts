@@ -27,6 +27,7 @@ export const tickets: Domain = {
     'Tickets: the unit of work in a product backlog, with blocking dependencies and linked actions. Always product-scoped (see `products`); they can point at a feature (`features`), scope (`scopes`), epic (`epics`) and cycle. Ticket comments are in the `comments` tool and labels in `labels`.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List every ticket in one product with full fields (body included), optionally filtered. No workspace-wide query — call once per product. prUrl/branchName are exact-match filters applied after the fetch.',
       params: z.object({
@@ -43,12 +44,14 @@ export const tickets: Domain = {
       run: (client, params) => client.tickets.list(params),
     }),
     get: op({
+      effect: 'read',
       summary:
         'Get one ticket in full: body, product, dependencies (dependsOn / requiredFor), linked actions and comments (newest first).',
       params: z.object({ id: ticketId }),
       run: (client, { id }) => client.tickets.get(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a ticket in a product. Number and shortId are assigned server-side.',
       params: z.object({
         productId: id('Product'),
@@ -73,6 +76,7 @@ export const tickets: Domain = {
       run: (client, params) => client.tickets.create(params),
     }),
     update: op({
+      effect: 'write',
       summary: 'Update a ticket. Only the fields you pass change.',
       params: z.object({
         id: ticketId,
@@ -96,12 +100,14 @@ export const tickets: Domain = {
       run: (client, params) => client.tickets.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary:
         'Delete a ticket permanently, with its comments and dependency edges. Linked actions are kept but unlinked.',
       params: z.object({ id: ticketId }),
       run: (client, { id }) => client.tickets.delete(id),
     }),
     search: op({
+      effect: 'read',
       summary:
         'Quick picker search within one product: matches title, shortId or ticket number and returns slim rows (id, number, shortId, title, status, priority, assignee), most recently updated first. Use `list` for full tickets or field filters.',
       params: z.object({
@@ -113,6 +119,7 @@ export const tickets: Domain = {
       run: (client, params) => client.tickets.search(params),
     }),
     add_dependency: op({
+      effect: 'write',
       summary:
         'Mark ticketId as blocked by dependsOnId. Both must be in the same product; rejects self-dependencies and cycles. Idempotent.',
       params: z.object({
@@ -122,6 +129,7 @@ export const tickets: Domain = {
       run: (client, { ticketId, dependsOnId }) => client.tickets.addDependency(ticketId, dependsOnId),
     }),
     remove_dependency: op({
+      effect: 'write',
       summary: 'Remove a "ticketId is blocked by dependsOnId" edge. Succeeds even if no such edge exists.',
       params: z.object({
         ticketId: id('Blocked ticket'),
@@ -130,6 +138,7 @@ export const tickets: Domain = {
       run: (client, { ticketId, dependsOnId }) => client.tickets.removeDependency(ticketId, dependsOnId),
     }),
     link_action: op({
+      effect: 'write',
       summary:
         'Attach one of your own actions to a ticket (an action belongs to at most one ticket, so this moves it if already linked).',
       params: z.object({
@@ -139,6 +148,7 @@ export const tickets: Domain = {
       run: (client, { ticketId, actionId }) => client.tickets.linkAction(ticketId, actionId),
     }),
     unlink_action: op({
+      effect: 'write',
       summary: 'Detach one of your own actions from whatever ticket it is linked to.',
       params: z.object({ actionId: id('Action') }),
       run: (client, { actionId }) => client.tickets.unlinkAction(actionId),

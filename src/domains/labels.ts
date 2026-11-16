@@ -43,6 +43,7 @@ export const labels: Domain = {
     'Labels (tags) that can be attached to actions (`actions`), tickets (`tickets`), features (`features`) and epics (`epics`). There are global system tags and per-workspace tags; a "label" is a tag whose category is null.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List available tags as { globalTags, workspaceTags, allTags }. Without workspaceId, workspaceTags covers every workspace you belong to. Omit category for all categories; null for plain labels only.',
       params: z.object({
@@ -52,6 +53,7 @@ export const labels: Domain = {
       run: (client, params) => client.labels.list(params),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a workspace tag. Fails if a tag with the same name (slug) already exists in the workspace.',
       params: z.object({
         workspaceId,
@@ -63,6 +65,7 @@ export const labels: Domain = {
       run: (client, params) => client.labels.create(params),
     }),
     set_for_entity: op({
+      effect: 'write',
       summary:
         'Replace the full tag set on an action, ticket, feature or epic (an empty list clears it). Tags must be global or from the entity’s workspace.',
       params: z.object({
@@ -73,6 +76,7 @@ export const labels: Domain = {
       run: (client, params) => client.labels.setEntityTags(params),
     }),
     list_for_entity: op({
+      effect: 'read',
       summary: 'List the tags on an action, ticket, feature or epic.',
       params: z.object({
         entityType: z.enum(ENTITY_TYPES),

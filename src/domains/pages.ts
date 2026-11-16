@@ -18,6 +18,7 @@ export const pages: Domain = {
     'Knowledge pages: workspace-scoped Markdown documents (strategy, PRDs, research, specs), optionally filed under a project. Reads are Markdown-only (the editor doc is never sent); use `outline` then `get` with `section` on long pages. Every write is recorded in the page history — pass a `note` saying why, and `baseVersion` so you never overwrite a newer edit. Link one to a feature with `features` link_page; page comments are in the `comments` tool.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List pages you can view, most recently edited first. Metadata only (no body) — use get for the content, search to find pages by meaning.',
       params: z.object({
@@ -28,6 +29,7 @@ export const pages: Domain = {
       run: (client, params) => client.pages.list(params),
     }),
     search: op({
+      effect: 'read',
       summary:
         'Find pages by meaning: semantic hits from the Knowledge index first (nearest first, with the matching passage as snippet), then pages whose title or body contain the text. Only pages you can view.',
       params: z.object({
@@ -39,6 +41,7 @@ export const pages: Domain = {
       run: (client, params) => client.pages.search(params),
     }),
     get: op({
+      effect: 'read',
       summary:
         'Get one page: Markdown body, bodyBytes (size of the whole body) and canEdit. Pass section to read one heading only.',
       params: z.object({
@@ -51,11 +54,13 @@ export const pages: Domain = {
       run: (client, { id, section }) => client.pages.get(id, { format: 'markdown', section }),
     }),
     outline: op({
+      effect: 'read',
       summary: 'The page\'s headings (level, text, line) and bodyBytes, no body — see a long page\'s shape before reading a section.',
       params: z.object({ id: id('Page') }),
       run: (client, { id }) => client.pages.outline(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a page. Title defaults to "Untitled"; a non-empty body is indexed for search. The note lands on its first revision.',
       params: z.object({
         workspaceId,
@@ -70,6 +75,7 @@ export const pages: Domain = {
       run: (client, params) => client.pages.create(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update a page. Only the fields you pass change; body replaces the whole document (comment anchors are carried across where their text survives). Send baseVersion (the docVersion you read) so a newer edit by someone else fails with CONFLICT instead of being overwritten.',
       params: z.object({
@@ -86,6 +92,7 @@ export const pages: Domain = {
       run: (client, params) => client.pages.update(params),
     }),
     history: op({
+      effect: 'read',
       summary: 'The page\'s revisions, newest first: who (authorHidden when names are withheld from you; baseline and automated rows have no author and the note says what wrote them), when, kind (baseline/create/editor/markdown/restore), note, provenance and body size. Never the bodies.',
       params: z.object({
         id: id('Page'),
@@ -95,11 +102,13 @@ export const pages: Domain = {
       run: (client, { id, ...options }) => client.pages.history(id, options),
     }),
     revision: op({
+      effect: 'read',
       summary: 'One revision with its Markdown body.',
       params: z.object({ id: id('Page'), revisionId: id('Revision') }),
       run: (client, { id, revisionId }) => client.pages.revision(id, revisionId),
     }),
     diff: op({
+      effect: 'read',
       summary:
         'What a revision changed: a unified diff of the Markdown with added/removed counts, plus titleChanged and provenanceChanged (source/asOf on both sides). against: "previous" (default — the revision before it), "current" (the page now) or another revision id.',
       params: z.object({
@@ -110,6 +119,7 @@ export const pages: Domain = {
       run: (client, { id, revisionId, against }) => client.pages.diff(id, revisionId, { against }),
     }),
     restore: op({
+      effect: 'write',
       summary:
         'Put a revision\'s title and body back as the page\'s current content. A forward write: docVersion bumps and a "restore" revision is recorded, so nothing is lost.',
       params: z.object({

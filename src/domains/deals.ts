@@ -10,26 +10,31 @@ export const deals: Domain = {
     'CRM deals moving through the workspace’s sales pipeline stages, plus the pipeline and its stages. Deals link to people in `contacts` and companies in `organizations`. All operations target the workspace’s default (oldest active) pipeline.',
   operations: {
     pipeline: op({
+      effect: 'read',
       summary: 'Get the workspace’s default pipeline with its stages, or null if there is none you can access.',
       params: z.object({ workspaceId }),
       run: (client, { workspaceId }) => client.pipelines.get(workspaceId),
     }),
     stages: op({
+      effect: 'read',
       summary: 'List the pipeline’s stages in order, with deal counts. Use a stage ID for create/move.',
       params: z.object({ workspaceId }),
       run: (client, { workspaceId }) => client.pipelines.getStages(workspaceId),
     }),
     list: op({
+      effect: 'read',
       summary: 'List every deal in the pipeline (unpaginated), ordered by position within stage.',
       params: z.object({ workspaceId }),
       run: (client, { workspaceId }) => client.pipelines.listDeals(workspaceId),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one deal with its stage, contact, organization, assignee and latest 50 activities.',
       params: z.object({ id: id('Deal') }),
       run: (client, { id }) => client.pipelines.getDeal(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a deal at the end of a stage. Logs a CREATED activity.',
       params: z.object({
         workspaceId,
@@ -47,6 +52,7 @@ export const deals: Domain = {
       run: (client, params) => client.pipelines.createDeal(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update a deal’s fields (not its stage — use move). Only the fields you pass change; a value change is logged as an activity.',
       params: z.object({
@@ -64,6 +70,7 @@ export const deals: Domain = {
       run: (client, params) => client.pipelines.updateDeal(params),
     }),
     move: op({
+      effect: 'write',
       summary:
         'Move a deal to a stage and position. Entering a won/lost stage sets closedAt (leaving one clears it); a stage change is logged. Other deals are not re-ordered.',
       params: z.object({
@@ -74,6 +81,7 @@ export const deals: Domain = {
       run: (client, params) => client.pipelines.moveDeal(params),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a deal permanently, with its activity history.',
       params: z.object({ id: id('Deal') }),
       run: (client, { id }) => client.pipelines.deleteDeal(id),

@@ -9,6 +9,7 @@ export const organizations: Domain = {
     'CRM organizations (companies) in a workspace. People are in the `contacts` tool and deals in `deals`.',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'List organizations alphabetically, with contact counts. Paginate with the returned nextCursor.',
       params: z.object({
         workspaceId,
@@ -20,11 +21,13 @@ export const organizations: Domain = {
       run: (client, params) => client.organizations.list(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one organization.',
       params: z.object({ id: id('Organization') }),
       run: (client, { id }) => client.organizations.get(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create an organization.',
       params: z.object({
         workspaceId,

@@ -33,6 +33,7 @@ export const contacts: Domain = {
     'CRM contacts (people) in a workspace, with their interaction history. Organizations live in the `organizations` tool and deals in `deals`. Personal fields are encrypted at rest; list/search runs server-side.',
   operations: {
     list: op({
+      effect: 'read',
       summary: 'List contacts, newest first. Paginate with the returned nextCursor.',
       params: z.object({
         workspaceId,
@@ -45,6 +46,7 @@ export const contacts: Domain = {
       run: (client, params) => client.contacts.list(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one contact, optionally with its interaction timeline.',
       params: z.object({
         id: id('Contact'),
@@ -53,6 +55,7 @@ export const contacts: Domain = {
       run: (client, { id, includeInteractions }) => client.contacts.get(id, { includeInteractions }),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a contact.',
       params: z.object({
         workspaceId,
@@ -69,6 +72,7 @@ export const contacts: Domain = {
       run: (client, params) => client.contacts.create(params),
     }),
     update: op({
+      effect: 'write',
       summary: 'Update a contact. Only the fields you pass change.',
       params: z.object({
         id: id('Contact'),
@@ -85,11 +89,13 @@ export const contacts: Domain = {
       run: (client, params) => client.contacts.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a contact permanently.',
       params: z.object({ id: id('Contact') }),
       run: (client, { id }) => client.contacts.delete(id),
     }),
     add_interaction: op({
+      effect: 'write',
       summary: 'Log an interaction (email, call, meeting, note…) on a contact’s timeline.',
       params: z.object({
         contactId: id('Contact'),
@@ -102,6 +108,7 @@ export const contacts: Domain = {
       run: (client, params) => client.contacts.addInteraction(params),
     }),
     enrich: op({
+      effect: 'write',
       summary:
         'Queue a web-search enrichment job for a contact. Idempotent: a job already in flight is not re-queued.',
       params: z.object({ id: id('Contact') }),

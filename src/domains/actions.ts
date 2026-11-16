@@ -32,6 +32,7 @@ export const actions: Domain = {
     'Actions: the personal and project to-dos on the user’s plate, with due/scheduled dates, priority and a kanban column. Projects live in the `projects` tool, logged time in `time`, and meetings (which can spawn actions) in `meetings`.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List your open actions (completed/cancelled hidden unless `status` is set). With projectId, returns that project’s actions and ignores `status`; with status alone, returns only actions you created in that kanban column.',
       params: z.object({
@@ -42,24 +43,28 @@ export const actions: Domain = {
       run: (client, params) => client.actions.list(params),
     }),
     get_today: op({
+      effect: 'read',
       summary:
         'What is actually on the user’s plate today, split into overdue / today / inbox — the /today page’s own partition. Prefer this for "what should I do today". Each group is capped at 50 rows; `count` is the true total.',
       params: z.object({ workspaceId: optionalWorkspaceId }),
       run: (client, { workspaceId }) => client.actions.getTodaysActions(workspaceId),
     }),
     get_due_today: op({
+      effect: 'read',
       summary:
         'Narrow slice: only actions whose dueDate is today. Excludes overdue and scheduled-but-undated work — use get_today for "what is on my plate".',
       params: z.object({ workspaceId: optionalWorkspaceId }),
       run: (client, { workspaceId }) => client.actions.getToday(workspaceId),
     }),
     get_overdue_triage: op({
+      effect: 'read',
       summary:
         'Explain the overdue pile: cohorts (actions sharing one exact timestamp, i.e. a bulk-dated plan — usually bulk_defer them) vs loose, individually-dated debt.',
       params: z.object({ workspaceId: optionalWorkspaceId }),
       run: (client, { workspaceId }) => client.actions.getOverdueTriage(workspaceId),
     }),
     bulk_reschedule: op({
+      effect: 'write',
       summary:
         'Move actions to a new date: sets both scheduledStart and dueDate to `dueDate`. Pass null to clear both (bulk_defer says that more clearly). Actions you cannot access are silently skipped.',
       params: z.object({
@@ -69,6 +74,7 @@ export const actions: Domain = {
       run: (client, { actionIds, dueDate }) => client.actions.bulkReschedule(actionIds, dueDate),
     }),
     bulk_defer: op({
+      effect: 'write',
       summary:
         'Amnesty: clear the dates on actions so they fall back to their project backlog untimed (1–200 ids). Kanban column is untouched. For work that was never really due — typically an overdue cohort.',
       params: z.object({
@@ -77,6 +83,7 @@ export const actions: Domain = {
       run: (client, { actionIds }) => client.actions.bulkDefer(actionIds),
     }),
     list_by_date_range: op({
+      effect: 'read',
       summary:
         'Your ACTIVE actions whose dueDate falls in [start, end) — end is exclusive. The workspace filter matches via the action’s project, so project-less actions drop out when it is set.',
       params: z.object({
@@ -87,6 +94,7 @@ export const actions: Domain = {
       run: (client, { start, end, workspaceId }) => client.actions.getByDateRange(start, end, workspaceId),
     }),
     list_kanban: op({
+      effect: 'read',
       summary:
         'Kanban-board actions (those with a kanban column), ordered by column then board order. Only returns actions you created.',
       params: z.object({
@@ -97,6 +105,7 @@ export const actions: Domain = {
       run: (client, params) => client.actions.getKanban(params),
     }),
     list_project_actions: op({
+      effect: 'read',
       summary:
         'All actions in one project, including completed ones (unlike list). FORBIDDEN if you lack project access.',
       params: z.object({
@@ -106,6 +115,7 @@ export const actions: Domain = {
       run: (client, { projectId, assigneeId }) => client.actions.getProjectActions(projectId, assigneeId),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create an action. Priority defaults to "Quick" and status to ACTIVE.',
       params: z.object({
         name: z.string(),
@@ -125,6 +135,7 @@ export const actions: Domain = {
       run: (client, params) => client.actions.create(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update an action. Only the fields you pass change. Complete it with status COMPLETED or kanbanStatus DONE.',
       params: z.object({
@@ -150,6 +161,7 @@ export const actions: Domain = {
       run: (client, params) => client.actions.update(params),
     }),
     upsert_by_source: op({
+      effect: 'write',
       summary:
         'Idempotent create keyed on (workspaceId, sourceType, sourceId): refreshes name/links if found, else creates. Returns { action, outcome: "created" | "updated" }.',
       params: z.object({

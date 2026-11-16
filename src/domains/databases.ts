@@ -72,6 +72,7 @@ export const databases: Domain = {
     'Not a work tracker: never put tasks, tickets or projects in a database — those have their own tools.',
   operations: {
     create: op({
+      effect: 'write',
       summary:
         'Create a database on a page with a title property, and (by default) place its block at the end of the page body. Then add properties and rows.',
       params: z.object({
@@ -98,27 +99,32 @@ export const databases: Domain = {
       },
     }),
     get: op({
+      effect: 'read',
       summary: 'One database: its properties (names, types, select options with ids), saved view, row count and holding page. Read this before writing rows.',
       params: z.object({ id: databaseId }),
       run: (client, { id }) => client.databases.get(id),
     }),
     list: op({
+      effect: 'read',
       summary: 'The databases a page holds, detached ones included (detachedAt set: the block is out of the body; rows wait 30 days for the purge).',
       params: z.object({ pageId: id('Page') }),
       run: (client, { pageId }) => client.databases.list(pageId),
     }),
     update: op({
+      effect: 'write',
       summary: 'Rename a database, or replace its saved view WHOLE (send the full view, not a patch).',
       params: z.object({ id: databaseId, name: z.string().min(1).optional(), view: viewInput.optional() }),
       run: (client, params) => client.databases.update(params),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a database and every row with it (the rows are pages). Removing the block from the page only detaches; this is the delete.',
       params: z.object({ id: databaseId }),
       run: (client, { id }) => client.databases.delete(id),
     }),
 
     add_property: op({
+      effect: 'write',
       summary: `Add a property (column). Types: ${PROPERTY_TYPES.join(', ')}. title exists from creation; relation arrives with V3. Select options get stable ids.`,
       params: z.object({
         id: databaseId,
@@ -130,6 +136,7 @@ export const databases: Domain = {
       run: (client, params) => client.databases.addProperty(params),
     }),
     update_property: op({
+      effect: 'write',
       summary:
         'Rename, retype, describe or re-option a property. Ids stay, no row is rewritten. options replaces the whole list: include existing options with their id to keep them, leave one out to remove it.',
       params: z.object({
@@ -143,17 +150,20 @@ export const databases: Domain = {
       run: (client, params) => client.databases.updateProperty(params),
     }),
     remove_property: op({
+      effect: 'delete',
       summary: 'Remove a property from the schema and view (never the title). Row values under it stay until each row is next written.',
       params: z.object({ id: databaseId, propertyId: z.string().describe('Property ID or name') }),
       run: (client, { id, propertyId }) => client.databases.removeProperty(id, propertyId),
     }),
     reorder_properties: op({
+      effect: 'write',
       summary: 'Set the column order; propertyIds must name every property exactly once.',
       params: z.object({ id: databaseId, propertyIds: z.array(z.string()).min(1) }),
       run: (client, { id, propertyIds }) => client.databases.reorderProperties(id, propertyIds),
     }),
 
     list_rows: op({
+      effect: 'read',
       summary:
         'Rows with their typed values (keyed by property ID; select values are option ids — map them with get), through the saved view or a view you pass. Paged: pass nextCursor back as cursor. columns = visible property ids in order.',
       params: z.object({
@@ -165,16 +175,19 @@ export const databases: Domain = {
       run: (client, { id, ...options }) => client.databases.listRows(id, options),
     }),
     add_row: op({
+      effect: 'write',
       summary: 'Add a row with typed values (see values). It becomes a page placed where the holding page is; the title property is its title.',
       params: z.object({ id: databaseId, values: values.optional(), note }),
       run: (client, { id, values: v, note: why }) => client.databases.createRow(id, v ?? {}, { note: why }),
     }),
     update_row: op({
+      effect: 'write',
       summary: 'Write some of a row\'s cells (see values). Cells you do not name are kept; null clears one. Recorded as a revision on the row page.',
       params: z.object({ rowId: id('Row page'), values, note }),
       run: (client, { rowId, values: v, note: why }) => client.databases.updateRow(rowId, v, { note: why }),
     }),
     delete_row: op({
+      effect: 'delete',
       summary: 'Delete a row: the page and its search chunks.',
       params: z.object({ rowId: id('Row page') }),
       run: (client, { rowId }) => client.databases.deleteRow(rowId),

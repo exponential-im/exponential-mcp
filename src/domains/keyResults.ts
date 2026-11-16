@@ -15,6 +15,7 @@ export const keyResults: Domain = {
     'Key results — the measurable half of an OKR, each hanging off one objective. Objectives themselves are in the `goals` tool; key results can be linked to projects and features as the work that moves them.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List key results. With workspaceId: every member’s (older servers may return only yours — prefer by_objective); without: only your own.',
       params: z.object({
@@ -27,6 +28,7 @@ export const keyResults: Domain = {
       run: (client, params) => client.keyResults.list(params),
     }),
     by_objective: op({
+      effect: 'read',
       summary:
         'Objectives with their key results nested and progress/status counts — the richest OKR read; workspace-correct on every server.',
       params: z.object({
@@ -41,11 +43,13 @@ export const keyResults: Domain = {
       run: (client, params) => client.keyResults.byObjective(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one key result with its check-ins and linked projects/features.',
       params: z.object({ id: keyResultId }),
       run: (client, { id }) => client.keyResults.get(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a key result on an objective. Omit workspaceId to inherit the objective’s workspace.',
       params: z.object({
         goalId,
@@ -63,6 +67,7 @@ export const keyResults: Domain = {
       run: (client, params) => client.keyResults.create(params),
     }),
     update: op({
+      effect: 'write',
       summary: 'Update a key result. Only the fields you pass change. Use check_in to record progress with history.',
       params: z.object({
         id: keyResultId,
@@ -81,6 +86,7 @@ export const keyResults: Domain = {
       run: (client, params) => client.keyResults.update(params),
     }),
     check_in: op({
+      effect: 'write',
       summary:
         'Record a progress check-in. The server re-derives status from where value lands between start and target.',
       params: z.object({
@@ -91,27 +97,32 @@ export const keyResults: Domain = {
       run: (client, params) => client.keyResults.checkIn(params),
     }),
     delete: op({
+      effect: 'delete',
       summary: 'Delete a key result permanently.',
       params: z.object({ id: keyResultId }),
       run: (client, { id }) => client.keyResults.delete(id),
     }),
     link_project: op({
+      effect: 'write',
       summary: 'Link a project to a key result as executing work. Idempotent.',
       params: z.object({ keyResultId, projectId: id('Project') }),
       run: (client, params) => client.keyResults.linkProject(params),
     }),
     unlink_project: op({
+      effect: 'write',
       summary: 'Remove a project link from a key result.',
       params: z.object({ keyResultId, projectId: id('Project') }),
       run: (client, params) => client.keyResults.unlinkProject(params),
     }),
     link_feature: op({
+      effect: 'write',
       summary:
         'Link a feature as executing work. Idempotent; feature must be in the same workspace. An unaligned feature inherits the objective.',
       params: z.object({ keyResultId, featureId: id('Feature') }),
       run: (client, params) => client.keyResults.linkFeature(params),
     }),
     unlink_feature: op({
+      effect: 'write',
       summary: 'Remove a feature link. Removes only the link row — never the feature’s objective alignment.',
       params: z.object({ keyResultId, featureId: id('Feature') }),
       run: (client, params) => client.keyResults.unlinkFeature(params),

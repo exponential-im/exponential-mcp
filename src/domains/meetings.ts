@@ -9,6 +9,7 @@ export const meetings: Domain = {
     'Meetings (transcription sessions): recorded, imported or manually created, each with free-form `notes`, an AI `summary` and the raw `transcription`. Actions extracted from them are in the `actions` tool; people in `contacts`.',
   operations: {
     list: op({
+      effect: 'read',
       summary:
         'List meetings you can see (owner, participant, project or workspace access), newest first. Rows include full notes/summary/transcription — expect large payloads.',
       params: z.object({
@@ -25,11 +26,13 @@ export const meetings: Domain = {
       run: (client, params) => client.meetings.list(params),
     }),
     get: op({
+      effect: 'read',
       summary: 'Get one meeting with participants, linked actions, workspace and project.',
       params: z.object({ id: meetingId }),
       run: (client, { id }) => client.meetings.get(id),
     }),
     create: op({
+      effect: 'write',
       summary: 'Create a meeting manually. A project-linked meeting inherits its project’s workspace.',
       params: z.object({
         title: z.string(),
@@ -54,6 +57,7 @@ export const meetings: Domain = {
       run: (client, params) => client.meetings.create(params),
     }),
     update: op({
+      effect: 'write',
       summary:
         'Update a meeting. Only the fields you pass change; passing none is an error. `notes` replaces the whole body — use append_notes to add.',
       params: z.object({
@@ -69,28 +73,33 @@ export const meetings: Domain = {
       run: (client, params) => client.meetings.update(params),
     }),
     get_notes: op({
+      effect: 'read',
       summary: 'Get just the meeting’s notes body (null when none written).',
       params: z.object({ id: meetingId }),
       run: (client, { id }) => client.meetings.getNotes(id),
     }),
     set_notes: op({
+      effect: 'write',
       summary: 'Replace the meeting’s notes wholesale.',
       params: z.object({ id: meetingId, notes: z.string() }),
       run: (client, { id, notes }) => client.meetings.setNotes(id, notes),
     }),
     append_notes: op({
+      effect: 'write',
       summary:
         'Append a block to the meeting’s notes (blank-line separated), creating them if empty. Read-modify-write, not atomic.',
       params: z.object({ id: meetingId, text: z.string() }),
       run: (client, { id, text }) => client.meetings.appendNotes(id, text),
     }),
     delete: op({
+      effect: 'delete',
       summary:
         'Permanently delete one meeting you own (FORBIDDEN otherwise). Linked actions survive, unlinked.',
       params: z.object({ id: meetingId }),
       run: (client, { id }) => client.meetings.delete(id),
     }),
     delete_many: op({
+      effect: 'delete',
       summary:
         'Permanently delete meetings in bulk. Ids that are missing or not yours are silently skipped — compare the returned count to what you sent.',
       params: z.object({ ids: z.array(meetingId) }),
