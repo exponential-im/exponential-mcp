@@ -250,6 +250,41 @@ is `defer_actions` (amnesty); `reschedule_actions` would just re-inflict the
 same pile tomorrow. Individually-dated **loose** actions are the ones that
 deserve a real decision.
 
+### Annotations
+
+Every tool carries MCP tool annotations: a `title`, `readOnlyHint` and
+`destructiveHint`. A domain tool is read-only only when every operation reads,
+and destructive when any operation deletes. No hand-written tool deletes
+anything.
+
+## Using the tools in your own server
+
+The tool registry is also exported on its own, as `exponential-mcp/tools`, so
+another server can offer the same tools over a different transport. The
+hosted endpoint in the Exponential app is built on it. Importing it has no side
+effects: it reads no config, touches no files and never exits the process. You
+build the `ExponentialClient`, so you choose who the tools act as.
+
+```ts
+import { ExponentialClient } from 'exponential-sdk';
+import { listTools, callTool } from 'exponential-mcp/tools';
+
+const client = new ExponentialClient({ token: process.env.EXPONENTIAL_API_KEY!, apiUrl: 'https://www.exponential.im' });
+
+listTools();                                   // Tool[] for tools/list
+await callTool(client, 'get_workspaces', {});  // CallToolResult for tools/call
+```
+
+- `listTools(options?)` returns every tool in `tools/list` order.
+- `callTool(client, name, args, options?)` runs one tool. A failure comes back as
+  a result with `isError: true` rather than a throw.
+- The three run tools (`report_progress`, `ask_owner`, `finish_run`) exist only
+  for a session serving an Agent run. They are listed and callable only when
+  `options.runContext` (`{ runId, runnerId? }`) is passed; leave it out otherwise.
+
+The stdio server (`exponential-mcp serve`) calls the same two functions, so both
+offer the same tools from the same release.
+
 ## Development
 
 ```bash
