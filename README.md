@@ -6,6 +6,8 @@ Connect Claude to your [Exponential](https://exponential.im) workspace. Manage p
 
 ## Quick Start
 
+You need [Node.js](https://nodejs.org) 18 or later and an Exponential account. Setup is two steps: create an agent, then connect your app.
+
 ### 1. Create an Agent
 
 Open [exponential.im/settings/agents/new](https://www.exponential.im/settings/agents/new):
@@ -15,38 +17,61 @@ Open [exponential.im/settings/agents/new](https://www.exponential.im/settings/ag
 
 The agent is its own identity: what Claude does in Exponential is attributed to it, not to you.
 
-### 2. Set Up the MCP Server
+### 2. Connect Your App
+
+Find your app below. `<key>` is the key from step 1.
+
+#### Claude Desktop
 
 ```bash
 npx exponential-mcp init
 ```
 
-Paste the agent key when prompted.
+Paste the key when prompted, then quit and reopen Claude Desktop. `init` saves the key on this machine and adds the server to Claude Desktop's config file on macOS, Windows and Linux.
 
-### 3. Configure for Your Claude Client
-
-**For Claude Desktop:**
-- `exponential-mcp init` will automatically configure Claude Desktop
-- Restart Claude Desktop
-
-**For Claude Code (VSCode Extension):**
-- The server uses `.mcp.json` in your project directory
-- Reload your VSCode window (`Cmd+Shift+P` → "Developer: Reload Window")
-- The server will be available in your current project
-
-### 4. Ask Claude to manage your tasks!
-
-## One Key per App
-
-`init` saves one key that every app on the machine shares. To give each app its own identity, create a separate agent per app and set its key in that app's MCP config. `EXPONENTIAL_API_KEY` overrides the key saved by `init`.
-
-**Claude Code:**
+#### Claude Code
 
 ```bash
-claude mcp add exponential -e EXPONENTIAL_API_KEY=<key> -- npx -y exponential-mcp serve
+claude mcp add --scope user exponential -e EXPONENTIAL_API_KEY=<key> -- npx -y exponential-mcp serve
 ```
 
-**Codex** (`~/.codex/config.toml`):
+`--scope user` makes the server available in every project. Leave it out to add the server to the current project only.
+
+#### Cursor
+
+Add to `~/.cursor/mcp.json` (every project) or `.cursor/mcp.json` (one project):
+
+```json
+{
+  "mcpServers": {
+    "exponential": {
+      "command": "npx",
+      "args": ["-y", "exponential-mcp", "serve"],
+      "env": { "EXPONENTIAL_API_KEY": "<key>" }
+    }
+  }
+}
+```
+
+#### VS Code
+
+Add to `.vscode/mcp.json`. VS Code names the top-level key `servers`, not `mcpServers`:
+
+```json
+{
+  "servers": {
+    "exponential": {
+      "command": "npx",
+      "args": ["-y", "exponential-mcp", "serve"],
+      "env": { "EXPONENTIAL_API_KEY": "<key>" }
+    }
+  }
+}
+```
+
+#### Codex
+
+Add to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.exponential]
@@ -55,9 +80,27 @@ args = ["-y", "exponential-mcp", "serve"]
 env = { EXPONENTIAL_API_KEY = "<key>" }
 ```
 
-**Claude Desktop or `.mcp.json`:** add `"env": { "EXPONENTIAL_API_KEY": "<key>" }` to the `exponential` entry.
+#### Any Other MCP Client
 
-Restart the app afterwards. Re-running `init` rewrites Claude Desktop's entry, including its `env`.
+Run the command `npx` with the arguments `-y exponential-mcp serve`, and set the environment variable `EXPONENTIAL_API_KEY` to your key. The server speaks MCP over stdio.
+
+### 3. Ask
+
+Restart the app, then try: "What's on my plate today?"
+
+## One Key per App
+
+Create a separate agent for each app, so that what each app does in Exponential is attributed to its own agent. The config blocks above do this: each one carries its own key in `EXPONENTIAL_API_KEY`.
+
+`init` works differently. It saves one key on the machine, and any app whose config has no `EXPONENTIAL_API_KEY` falls back to it. `EXPONENTIAL_API_KEY` always overrides the saved key.
+
+To give Claude Desktop its own key, add `"env": { "EXPONENTIAL_API_KEY": "<key>" }` to the `exponential` entry in its config file (see [Claude Desktop by Hand](#claude-desktop-by-hand)). Re-running `init` rewrites that entry, including its `env`.
+
+A personal API key from [Settings → API keys](https://www.exponential.im/settings/api-keys) also works in place of an agent key, but then the app acts as you.
+
+### Self-Hosted Exponential
+
+Point the server at your own instance with `npx exponential-mcp init --base-url https://your-host`, or set `EXPONENTIAL_API_URL` next to `EXPONENTIAL_API_KEY` in the app's config.
 
 ## What Claude Can Do
 
@@ -73,44 +116,47 @@ Once connected, Claude can:
 - **Run the product backlog** – tickets, features, epics, stories, pages and decisions
 - **Track time** – log, confirm and report on the day
 
-## Manual Setup
+## Claude Desktop by Hand
 
-### For Claude Desktop
+`npx exponential-mcp init` edits Claude Desktop's config file for you. To do it yourself, open the file for your platform:
 
-**macOS (recommended path):** `~/Library/Application Support/Claude/claude_desktop_config.json`  
-**Legacy path:** `~/.claude/claude_desktop_config.json`
+| Platform | Config file |
+|----------|-------------|
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
 
-Add this to the appropriate file:
-
-```json
-{
-  "mcpServers": {
-    "exponential": {
-      "command": "/absolute/path/to/node",
-      "args": ["/absolute/path/to/exponential-mcp/dist/index.js"]
-    }
-  }
-}
-```
-
-### For Claude Code (VSCode Extension)
-
-Create a `.mcp.json` file in your project directory:
+Add the `exponential` entry under `mcpServers`, keeping any servers already there:
 
 ```json
 {
   "mcpServers": {
     "exponential": {
       "command": "npx",
-      "args": ["-y", "exponential-mcp", "serve"]
+      "args": ["-y", "exponential-mcp", "serve"],
+      "env": { "EXPONENTIAL_API_KEY": "<key>" }
     }
   }
 }
 ```
 
-Then reload your VSCode window.
+Then quit and reopen Claude Desktop.
 
-**Note:** The key is stored in the Exponential SDK config store (created by `npx exponential-mcp init`), so you don't need to specify it in the MCP configuration unless the app needs its own key (see [One Key per App](#one-key-per-app)). A personal JWT token from [Settings → API keys](https://www.exponential.im/settings/api-keys) also works, but then Claude acts as you. Run `exponential-mcp config` to see the current storage path and values. Run `exponential-mcp doctor` to print a recommended MCP config snippet for your machine.
+If you installed Node with nvm, fnm, asdf or similar, a bare `npx` will not work here: Claude Desktop does not start servers with your shell's `PATH`. Use the entry that `npx exponential-mcp doctor` prints. It names `npx` by its full path and puts Node's directory on `PATH`. `init` writes that same entry.
+
+## Troubleshooting
+
+Start with `npx exponential-mcp doctor`. It checks the saved key and Claude Desktop's config, and prints a config entry that works on your machine.
+
+| Symptom | Fix |
+|---------|-----|
+| The tools don't appear | Quit the app completely and reopen it. MCP servers load only at startup. |
+| Claude Desktop logs `npx: command not found` or `env: node: No such file or directory` | Node is outside the system `PATH` (nvm and similar). Run `npx exponential-mcp init` again, or copy the entry `doctor` prints. |
+| It worked, then stopped starting | Versions before 0.13.1 pointed Claude Desktop at npx's cache, which npx may delete. Run `npx exponential-mcp init` again. |
+| On Windows, `init` succeeded but Claude Desktop shows nothing | Versions before 0.13.1 wrote to a file Claude Desktop does not read. Run `npx exponential-mcp init` again. |
+| `Cannot find package …` when the server starts | npx's cache holds a half-finished install. Delete the `_npx` folder inside your npm cache (`~/.npm/_npx` on macOS and Linux) and restart the app. |
+| The key is rejected, or the app acts as the wrong agent | `npx exponential-mcp config` shows the saved key and URL. An `EXPONENTIAL_API_KEY` in the app's config overrides the saved key. |
+| You want the newest version | `npx -y exponential-mcp@latest --version` fetches it; then restart the app. |
 
 ## Commands
 
@@ -208,7 +254,7 @@ deserve a real decision.
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/exponential-mcp
+git clone https://github.com/exponential-im/exponential-mcp
 cd exponential-mcp
 
 # Install dependencies
