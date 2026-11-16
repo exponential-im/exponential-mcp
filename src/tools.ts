@@ -719,14 +719,19 @@ export async function callTool(
         // quickCreate's input field is `name`, not `text` -- it parses natural
         // language out of the name itself (dates, project names) when
         // parseNaturalLanguage is on, which it is by default.
-        const action = await trpcClient.action.quickCreate.mutate({
+        // It returns `{ success, message, title, url, action, parsing }`: the
+        // created Action's name and id live under `.action`.
+        const result = await trpcClient.action.quickCreate.mutate({
           name: args?.text as string,
         });
+        const { action, url } = result;
         return {
           content: [
             {
               type: 'text',
-              text: `Created action: ${action.name} (ID: ${action.id})`,
+              text:
+                `Created action: ${action.name} (ID: ${action.id})` +
+                (url ? `\n${url}` : ''),
             },
           ],
         };
