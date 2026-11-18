@@ -1,0 +1,131 @@
+# PR-Agent (Qodo) configuration — version-controlled review behaviour.
+# Full reference: https://qodo-merge-docs.qodo.ai/usage-guide/configuration_options/
+# The API key (OPENROUTER.KEY) and which tools run (review only) live in
+# .github/workflows/pr_agent.yml. The model lives here, not there: PR-Agent applies
+# this file after the workflow's env vars, so this file wins on any key both set.
+# PR-Agent reads this file from main, so a change here only takes effect once merged.
+#
+# The [config] and [openrouter] sections are the app repo's (exponential-im/exponential,
+# .pr_agent.toml); keep them the same. The house rules below are this repo's own.
+
+[config]
+# GLM 5.3 through OpenRouter. Both models are OpenRouter ones, so PR-Agent never
+# needs an Anthropic or OpenAI key. GLM 5.2 is the same price on Z.AI's endpoint.
+model = "openrouter/z-ai/glm-5.3"
+fallback_models = ["openrouter/z-ai/glm-5.2"]
+# Declared so PR-Agent can budget the diff even when the bundled litellm build
+# predates this model and has no registry entry for it (without this, an
+# unregistered model errors during token counting). This is only the ceiling —
+# the effective diff budget is max_model_tokens below.
+custom_model_max_tokens = 200000
+# The diff budget. PR-Agent's default is 32k, and a diff bigger than that gets a partial
+# review: files are left out, the review state says `complete: false`, and the auto-merge
+# gate holds the PR for a person. At 128k a full review of a big PR costs about $0.18 at
+# Z.AI's $1.40 per million input tokens; small PRs cost the same as at 32k.
+max_model_tokens = 128000
+# Markdown rendering of the model's suggestions.
+publish_output = true
+
+[openrouter]
+# Serve GLM only from Z.AI's own endpoint. GLM is an open model and OpenRouter
+# otherwise routes to the cheapest of ~40 hosts, some running cut-down (fp4)
+# builds, and each of them would see our diffs. If Z.AI is down the call fails
+# rather than moving to another host, and the check goes red.
+provider_only = ["z-ai"]
+
+[pr_reviewer]
+# Concise, focused review. Flip these on if you want more.
+require_score_review = false
+require_tests_review = true
+require_security_review = true
+num_max_findings = 8
+# Don't re-post the whole review on every push; update the existing comment.
+persistent_comment = true
+final_update_message = false
+# Repo-specific rules the reviewer can't infer from the diff.
+extra_instructions = """
+This repo is exponential-mcp: an MCP server, published to npm, that gives Claude and
+other models tools over an Exponential workspace. It speaks JSON-RPC over stdio and is
+a thin layer over exponential-sdk. Its tool names, descriptions and schemas are read by
+models, not people. Flag violations of this repo's house rules, with the rule named:
+
+stdout is the protocol — the server (src/index.ts and everything it imports) must never
+write to stdout except through the MCP transport: a stray `console.log` or
+`process.stdout.write` corrupts the JSON-RPC stream and the client drops the connection.
+Diagnostics go to stderr (`console.error`). src/cli.ts (init, doctor and friends) is an
+ordinary command-line program and may print to stdout.
+
+Tool contract — tool names, operation names and parameter names are what models and
+saved prompts call. Flag a rename or removal, a parameter that becomes required, or a
+changed result shape, unless package.json's version takes a major bump in the same PR.
+A new tool or domain must be registered (src/domains/index.ts for a domain) or it is
+never listed.
+
+Domain tools — src/domains/ has one tool per SDK namespace, taking
+`{ operation, params }`. Each operation is declared once with `op({ summary, params,
+run })`, and that zod `params` object drives the description, the `describe` output and
+runtime validation. Flag a hand-written JSON Schema, a second validation path, or a
+parameter read from `args` that the zod schema does not declare. A summary must say
+what is surprising about the operation, and a destructive or irreversible one must say
+so in its summary (as `delete` does today).
+
+Descriptions are prompts — they must be true. Flag a description or summary that
+promises behaviour the code does not have, omits a side effect, or drops the "guidance,
+not authority" note from the agent guidance tools. Run tools (src/runTools.ts) are
+listed only when EXPONENTIAL_RUN_ID is set; flag anything that would expose them to an
+ordinary session.
+
+SDK boundary — tools call exponential-sdk's ExponentialClient. Flag a direct `fetch` or
+a hand-built tRPC call. A change that needs a newer SDK must raise the
+`exponential-sdk` range in package.json to a version that is published on npm and
+update package-lock.json with it; CI rejects anything else
+(.github/scripts/check-sdk-pin.mjs).
+
+Credentials — the API key or token never appears in a tool result, an error returned
+to the model, or stderr. Tool results go into a model's context and often into logs.
+
+ESM — the package is compiled by tsc and run by Node as ES modules with no bundler, so
+a relative import without its `.js` extension compiles and then crashes at startup.
+Flag any. Type-only imports use `import type`.
+
+TypeScript — strict mode; no `any` in new code beyond the casts the framework already
+needs; every promise is awaited or returned.
+
+Tests — node:test files in test/*.test.mjs that import the built code from ../dist and
+use a fake client. A test must not call the network or read the real config store. A
+new tool that does more than pass its input straight to the SDK needs a test.
+
+Docs — a new top-level tool belongs in README.md's Available Tools table. A missing
+entry is a [minor] finding, never a blocker.
+
+Severity — begin the header of every key issue with exactly one tag, then the title
+as usual (e.g. "[blocker] console.log on the stdio transport"):
+[blocker] — merging this commit as-is would ship a bug, a security hole, a leaked
+credential, a breaking change to a tool's name, parameters or result without a major
+version bump, or a build/CI failure, or would break a house rule above (the Docs rule
+excepted).
+[minor] — everything else, including anything you are not confident is a real
+problem (a "worth confirming", "may", or "could" finding is minor).
+An automated merge gate reads these tags: a [blocker] holds the PR for a human, a
+[minor] does not. Tag honestly in both directions.
+"""
+
+[pr_description]
+# Structured description + walkthrough. Not run automatically (pr_agent.yml is
+# review-only); applies when someone comments `/describe` on a PR.
+publish_description_as_comment = false
+add_original_user_description = true
+generate_ai_title = false
+
+[pr_code_suggestions]
+# Improvement suggestions. Not run automatically (pr_agent.yml is review-only);
+# applies when someone comments `/improve` on a PR. Keep the volume sane.
+num_code_suggestions = 4
+commitable_code_suggestions = false
+extra_instructions = """
+Never suggest code that would fail this repo's own gates or house rules: no `any`, no
+relative import without its `.js` extension, no `import` of types without `import type`,
+no unhandled promise, nothing written to stdout from the server, and no change to an
+existing tool, operation or parameter name.
+Skip cosmetic suggestions — there is no formatter here and style churn is not wanted.
+"""

@@ -302,6 +302,42 @@ npm run build
 npm start
 ```
 
+## Contributing
+
+### Who merges: the PR-Agent auto-merge gate, or James
+
+`.github/workflows/pr-agent-automerge.yml` squash-merges a PR into `main` once CI
+(`Build, typecheck & test`) is green and PR-Agent left nothing blocking on the latest
+commit. **Agent sessions do not merge PRs.**
+
+PR-Agent runs review-only: GLM 5.3 through OpenRouter, one call per push. It doesn't
+rewrite descriptions or post code suggestions. What blocks is a review finding tagged
+`[blocker]` or left untagged, or a security concern. Fix those; `[minor]` findings don't
+hold the merge. Every push is reviewed again and paid for, so batch fixes into one push
+rather than pushing each one separately. The model and house rules are in `.pr_agent.toml`;
+PR-Agent reads that file from `main`, so editing it on a branch changes nothing until merged.
+
+- Never run `gh pr merge`, and never pass `--merge` to `/ship-this` or `/ship-ticket`. Open
+  the PR, apply PR-Agent's findings, push, and stop at "in review". The gate (or James) merges.
+- Never add the `pr-agent-ack` label. It means "James saw the blocker and is merging anyway".
+  Only James applies it, and the gate ignores it from anyone else.
+- A PR you can't get past the gate is left for James with a comment saying what blocks it
+  and why you could not fix it.
+- `no-automerge` on a PR keeps it human-only. Don't remove it.
+- PRs from forks and PRs opened by bots are never auto-merged; James merges those.
+
+### `exponential-sdk` must be published before a PR that needs it
+
+CI runs `.github/scripts/check-sdk-pin.mjs` before `npm ci`. It fails when the
+`exponential-sdk` range in `package.json` has no published version on npm, when
+`package-lock.json` pins a version that isn't on npm (or a local link or tarball), or when
+the two files disagree. Publish the SDK first, then run `npm install` here and commit
+`package-lock.json`. A version published in the last few minutes can lag the registry;
+re-run the job.
+
+`.github/workflows/sdk-bump.yml` checks npm hourly and opens a `chore: bump exponential-sdk
+to <version>` PR when there is a newer SDK. A bot opens it, so the gate leaves it for James.
+
 ## License
 
 GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE).
