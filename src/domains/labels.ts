@@ -1,7 +1,28 @@
 import { z } from 'zod';
 import { type Domain, id, op, workspaceId } from './framework.js';
 
-const ENTITY_TYPES = ['action', 'ticket', 'feature', 'epic'] as const;
+/** The server's tagEntityTypeSchema, in its order. */
+export const ENTITY_TYPES = [
+  'action',
+  'ticket',
+  'feature',
+  'epic',
+  'project',
+  'goal',
+  'resource',
+  'recurringTask',
+  'decision',
+] as const;
+
+/** Entity types that take Pillars only; the server rejects a plain label on them. */
+export const PILLAR_ONLY_ENTITY_TYPES = ['project', 'goal', 'resource', 'recurringTask'] as const;
+
+const ENTITY_TYPE_HELP =
+  'action, ticket, feature, epic and decision take Pillars and labels; project, goal, resource and recurringTask take Pillars only.';
+
+const entityId = z
+  .string()
+  .describe('ID of the entity. A decision takes its CUID (not its D-0006 label); a goal its integer id as a string.');
 
 const TAG_COLORS = [
   'avatar-red',
@@ -40,12 +61,12 @@ const category = z
 export const labels: Domain = {
   name: 'labels',
   description:
-    'Labels (tags) that can be attached to actions (`actions`), tickets (`tickets`), features (`features`) and epics (`epics`). There are global system tags and per-workspace tags; a "label" is a tag whose category is null.',
+    'Labels and Pillars (both are tags). A tag whose category is "pillar" is a Pillar (a standing area of the workspace); any other tag is a label. Actions, tickets, features, epics and decisions (`decisions`) take Pillars and labels; projects, goals, resources and recurring tasks take Pillars only. There are global system tags and per-workspace tags. Creating or promoting a Pillar needs a workspace admin, in the app.',
   operations: {
     list: op({
       effect: 'read',
       summary:
-        'List available tags as { globalTags, workspaceTags, allTags }. Without workspaceId, workspaceTags covers every workspace you belong to. Omit category for all categories; null for plain labels only.',
+        'List available tags as { globalTags, workspaceTags, allTags }. Without workspaceId, workspaceTags covers every workspace you belong to. Omit category for all categories; "pillar" for Pillars only; null for plain labels only.',
       params: z.object({
         workspaceId: workspaceId.optional(),
         category,
@@ -67,20 +88,20 @@ export const labels: Domain = {
     set_for_entity: op({
       effect: 'write',
       summary:
-        'Replace the full tag set on an action, ticket, feature or epic (an empty list clears it). Tags must be global or from the entity’s workspace.',
+        `REPLACE the full tag set (Pillars and labels together) on an entity; an empty list clears it. To add or remove one tag, call list_for_entity first and send the whole new set. Tags must be global or from the entity’s workspace. ${ENTITY_TYPE_HELP} To file a decision under a Pillar: entityType "decision" with the decision's id (decisions.create takes no tags).`,
       params: z.object({
-        entityType: z.enum(ENTITY_TYPES),
-        entityId: z.string().describe('ID of the action, ticket, feature or epic'),
+        entityType: z.enum(ENTITY_TYPES).describe(ENTITY_TYPE_HELP),
+        entityId,
         tagIds: z.array(id('Tag')),
       }),
       run: (client, params) => client.labels.setEntityTags(params),
     }),
     list_for_entity: op({
       effect: 'read',
-      summary: 'List the tags on an action, ticket, feature or epic.',
+      summary: `List the tags (Pillars and labels) on an entity. A decision's tags are read here: decisions.get returns none. ${ENTITY_TYPE_HELP}`,
       params: z.object({
-        entityType: z.enum(ENTITY_TYPES),
-        entityId: z.string().describe('ID of the action, ticket, feature or epic'),
+        entityType: z.enum(ENTITY_TYPES).describe(ENTITY_TYPE_HELP),
+        entityId,
       }),
       run: (client, params) => client.labels.listForEntity(params),
     }),

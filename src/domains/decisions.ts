@@ -19,11 +19,12 @@ const scopeFields = {
 export const decisions: Domain = {
   name: 'decisions',
   description:
-    'The Decision Log: decisions and open questions (an open question is a decision with status OPEN — there is no separate model), optionally sourced from a meeting with transcript evidence. Meetings are in `meetings`; decisions can be linked to `tickets` and `features` as "implemented by".',
+    'The Decision Log: decisions and open questions (an open question is a decision with status OPEN — there is no separate model), optionally sourced from a meeting with transcript evidence. Meetings are in `meetings`; decisions can be linked to `tickets` and `features` as "implemented by". Decisions are filed under Pillars and labels: set them through `labels` set_for_entity with entityType "decision" (create takes no tags, get returns none — read them with `labels` list_for_entity); list rows carry `tags` and list filters by tagIds.',
   operations: {
     list: op({
       effect: 'read',
-      summary: 'Confirmed decisions in a workspace, newest decided first. Never includes drafts (see list_for_meeting).',
+      summary:
+        'Confirmed decisions in a workspace, newest decided first. Never includes drafts (see list_for_meeting). Every row has tags: [{ id, name, slug, color, category, archivedAt }] — category "pillar" is a Pillar, anything else a label. tagIds filters to decisions carrying ANY of the given Pillars or labels (find ids with `labels` list, category "pillar" for Pillars).',
       params: z.object({
         workspaceId,
         statuses: z.array(z.enum(DECISION_STATUSES)).optional(),
@@ -36,13 +37,19 @@ export const decisions: Domain = {
         projectId: id('Project').optional(),
         search: z.string().max(200).optional().describe('Free text over statement and body'),
         number: z.number().int().min(1).optional().describe('One decision by its workspace sequence number — D-0003 is 3'),
+        tagIds: z
+          .array(id('Tag'))
+          .max(50)
+          .optional()
+          .describe('Only decisions carrying ANY of these Pillar or label ids (max 50)'),
         limit: z.number().int().min(1).max(500).optional().describe('Unset returns everything visible'),
       }),
       run: (client, params) => client.decisions.list(params),
     }),
     get: op({
       effect: 'read',
-      summary: 'Get one decision with its deciders, evidence, links and supersession chain.',
+      summary:
+        'Get one decision with its deciders, evidence, links and supersession chain. Its Pillars and labels are not included: read them with `labels` list_for_entity (entityType "decision").',
       params: z.object({ workspaceId, decisionId }),
       run: (client, { workspaceId, decisionId }) => client.decisions.get(workspaceId, decisionId),
     }),
@@ -69,7 +76,7 @@ export const decisions: Domain = {
     create: op({
       effect: 'write',
       summary:
-        'Log a decision (status defaults to PROPOSED). Pass status "OPEN" for an open question and transcriptionSessionId to attach it to a meeting.',
+        'Log a decision (status defaults to PROPOSED). Pass status "OPEN" for an open question and transcriptionSessionId to attach it to a meeting. Takes no Pillars or labels: file it afterwards with `labels` set_for_entity (entityType "decision", entityId = the returned id).',
       params: z.object({
         workspaceId,
         statement: z.string().max(500).describe('The decision itself, or the open question'),
