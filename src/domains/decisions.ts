@@ -8,6 +8,9 @@ const decisionId = id('Decision');
 const meetingId = id('Meeting (transcription session)');
 const clearable = (what: string) => z.string().nullable().optional().describe(`${what} (null to clear)`);
 
+const TITLE_DESCRIPTION =
+  'The outcome in six words or fewer, e.g. "Text place beats Dataminr location" — state the outcome, not the topic. The row text in every decision list, with the statement under it. Optional; six words is advice, not enforced';
+
 /** Scope links shared by create and update; all nullable to clear. */
 const scopeFields = {
   productId: clearable('Product ID'),
@@ -19,7 +22,7 @@ const scopeFields = {
 export const decisions: Domain = {
   name: 'decisions',
   description:
-    'The Decision Log: decisions and open questions (an open question is a decision with status OPEN — there is no separate model), optionally sourced from a meeting with transcript evidence. Meetings are in `meetings`; decisions can be linked to `tickets` and `features` as "implemented by". Decisions are filed under Pillars and labels: set them through `labels` set_for_entity with entityType "decision" (create takes no tags, get returns none — read them with `labels` list_for_entity); list rows carry `tags` and list filters by tagIds.',
+    'The Decision Log: decisions and open questions (an open question is a decision with status OPEN — there is no separate model), optionally sourced from a meeting with transcript evidence. Meetings are in `meetings`; decisions can be linked to `tickets`, `features` and a feature’s scopes (`scopes`) as "implemented by". A decision has a short `title` (the outcome in six words or fewer) beside its full `statement`. Decisions are filed under Pillars and labels: set them through `labels` set_for_entity with entityType "decision" (create takes no tags, get returns none — read them with `labels` list_for_entity); list rows carry `tags` and list filters by tagIds.',
   operations: {
     list: op({
       effect: 'read',
@@ -35,7 +38,7 @@ export const decisions: Domain = {
           .optional()
           .describe('With a real productId: also include decisions that have no product'),
         projectId: id('Project').optional(),
-        search: z.string().max(200).optional().describe('Free text over statement and body'),
+        search: z.string().max(200).optional().describe('Free text over title, statement and body'),
         number: z.number().int().min(1).optional().describe('One decision by its workspace sequence number — D-0003 is 3'),
         tagIds: z
           .array(id('Tag'))
@@ -76,9 +79,10 @@ export const decisions: Domain = {
     create: op({
       effect: 'write',
       summary:
-        'Log a decision (status defaults to PROPOSED). Pass status "OPEN" for an open question and transcriptionSessionId to attach it to a meeting. Takes no Pillars or labels: file it afterwards with `labels` set_for_entity (entityType "decision", entityId = the returned id).',
+        'Log a decision (status defaults to PROPOSED). Give it a title: the outcome in six words or fewer. Pass status "OPEN" for an open question and transcriptionSessionId to attach it to a meeting. Takes no Pillars or labels: file it afterwards with `labels` set_for_entity (entityType "decision", entityId = the returned id).',
       params: z.object({
         workspaceId,
+        title: z.string().max(120).nullable().optional().describe(TITLE_DESCRIPTION),
         statement: z.string().max(500).describe('The decision itself, or the open question'),
         body: z.string().max(20000).nullable().optional().describe('Markdown detail — context, alternatives, consequences'),
         status: z
@@ -128,6 +132,9 @@ export const decisions: Domain = {
       params: z.object({
         workspaceId,
         decisionId,
+        title: z.string().max(120).nullable().optional().describe(
+          `${TITLE_DESCRIPTION}. null clears it. Like statement and body, an agent may set it on a draft but not change it on a confirmed decision (FORBIDDEN): propose the change as a new draft instead`,
+        ),
         statement: z.string().max(500).optional(),
         body: clearable('Markdown body'),
         decidedAt: date('When it was decided').nullable().optional(),
@@ -166,12 +173,20 @@ export const decisions: Domain = {
       run: (client, { workspaceId, decisionId, featureId }) =>
         client.decisions.linkFeature(workspaceId, decisionId, featureId),
     }),
+    link_scope: op({
+      effect: 'write',
+      summary:
+        'Mark a decision as "implemented by" one of a feature’s scopes (V1, V2, ...) — narrower than link_feature. The decision also shows on the feature’s Decisions block with the scope’s version, and groups under the scope on a Pillar page. Idempotent: an existing link is returned. Find scope IDs with `scopes`.',
+      params: z.object({ workspaceId, decisionId, scopeId: id('Feature scope') }),
+      run: (client, { workspaceId, decisionId, scopeId }) =>
+        client.decisions.linkScope(workspaceId, decisionId, scopeId),
+    }),
     unlink: op({
       effect: 'write',
-      summary: 'Remove one ticket/feature link.',
+      summary: 'Remove one ticket, feature or scope link.',
       params: z.object({
         workspaceId,
-        linkId: z.string().describe('DecisionLink ID from the decision’s links — not the ticket or feature ID'),
+        linkId: z.string().describe('DecisionLink ID from the decision’s links — not the ticket, feature or scope ID'),
       }),
       run: (client, { workspaceId, linkId }) => client.decisions.unlink(workspaceId, linkId),
     }),
