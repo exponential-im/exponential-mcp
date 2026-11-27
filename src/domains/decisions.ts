@@ -132,7 +132,9 @@ export const decisions: Domain = {
       params: z.object({
         workspaceId,
         decisionId,
-        title: z.string().max(120).nullable().optional().describe(`${TITLE_DESCRIPTION}. null clears it`),
+        title: z.string().max(120).nullable().optional().describe(
+          `${TITLE_DESCRIPTION}. null clears it. Like statement and body, an agent may set it on a draft but not change it on a confirmed decision (FORBIDDEN): propose the change as a new draft instead`,
+        ),
         statement: z.string().max(500).optional(),
         body: clearable('Markdown body'),
         decidedAt: date('When it was decided').nullable().optional(),
