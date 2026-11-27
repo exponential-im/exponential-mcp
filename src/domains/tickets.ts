@@ -46,7 +46,7 @@ export const tickets: Domain = {
     get: op({
       effect: 'read',
       summary:
-        'Get one ticket in full: body, product, dependencies (dependsOn / requiredFor), linked actions and comments (newest first).',
+        'Get one ticket in full: body, product, dependencies (dependsOn / requiredFor), linked decisions (id, label, statement, status, decidedAt, linkId; OPEN = a question raised on the ticket; drafts excluded), linked actions and comments (newest first).',
       params: z.object({ id: ticketId }),
       run: (client, { id }) => client.tickets.get(id),
     }),
